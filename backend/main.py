@@ -5,7 +5,8 @@ import argparse
 import numpy as np
 
 from backend.algorithms.registry import list_algorithms
-from backend.services.train_service import run_experiment
+from backend.data.sample_datasets import load_sample_dataset
+from backend.services.train_service import run_cross_validation, run_experiment
 
 
 def _demo_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -26,9 +27,28 @@ def run_demo() -> None:
         ("random_forest", {"n_estimators": 12, "max_depth": 5}, y_class),
         ("gradient_boosting", {"task": "classification", "n_estimators": 15}, y_class),
         ("gradient_boosting", {"task": "regression", "n_estimators": 15}, y_reg),
+        ("linear_regression", {}, y_reg),
+        ("logistic_regression", {}, y_class),
+        ("knn", {"k": 5}, y_class),
+        ("decision_tree", {"max_depth": 4}, y_class),
+        ("svm", {}, y_class),
     ]:
         result = run_experiment(name, X_train, X_test, y[:140], y[140:], **params)
         print(f"{name} ({result['task_type']}): {result.get('metrics', {})}")
+
+    print("\nSample datasets:")
+    for dataset, name, params in [
+        ("iris", "knn", {"k": 5}),
+        ("iris", "decision_tree", {"max_depth": 3}),
+        ("iris", "logistic_regression", {}),
+        ("iris", "svm", {}),
+        ("watermelon", "decision_tree", {"max_depth": 3}),
+        ("diabetes", "linear_regression", {}),
+    ]:
+        X, y, task_type, _ = load_sample_dataset(dataset)
+        result = run_cross_validation(name, X, y, n_splits=5, **params)
+        summary = {key: round(value["mean"], 4) for key, value in result["summary"].items()}
+        print(f"{name} on {dataset} ({task_type}, 5-fold): {summary}")
 
 
 def main() -> None:

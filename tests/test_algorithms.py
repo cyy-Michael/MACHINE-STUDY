@@ -2,7 +2,18 @@ import unittest
 
 import numpy as np
 
-from backend.algorithms import GradientBoosting, GaussianNaiveBayes, KMeans, PCA, RandomForest
+from backend.algorithms import (
+    DecisionTree,
+    GradientBoosting,
+    GaussianNaiveBayes,
+    KMeans,
+    KNN,
+    LinearRegression,
+    LogisticRegression,
+    PCA,
+    RandomForest,
+    SVM,
+)
 
 
 class AlgorithmsTest(unittest.TestCase):
@@ -40,6 +51,39 @@ class AlgorithmsTest(unittest.TestCase):
         ]:
             model.fit(self.X, self.regression_y)
             self.assertEqual(model.predict(self.X).shape, self.regression_y.shape)
+
+    def test_supervised_five_classifiers(self):
+        for model in [
+            LogisticRegression(n_iters=500),
+            KNN(k=3),
+            DecisionTree(max_depth=4),
+            SVM(n_iters=500),
+        ]:
+            model.fit(self.X, self.y)
+            predictions = model.predict(self.X)
+            self.assertEqual(predictions.shape, self.y.shape)
+            self.assertEqual(model.predict_proba(self.X).shape, (80, 2))
+
+    def test_linear_regression(self):
+        model = LinearRegression().fit(self.X, self.regression_y)
+        predictions = model.predict(self.X)
+        self.assertEqual(predictions.shape, self.regression_y.shape)
+        self.assertLess(float(np.mean((predictions - self.regression_y) ** 2)), 1e-6)
+
+    def test_classifiers_separable_accuracy(self):
+        X = np.vstack([np.random.default_rng(0).normal(-2, 0.5, (30, 2)), np.random.default_rng(1).normal(2, 0.5, (30, 2))])
+        y = np.array(["a"] * 30 + ["b"] * 30)
+        for model in [KNN(k=3), DecisionTree(max_depth=3), LogisticRegression(), SVM()]:
+            accuracy = float(np.mean(model.fit(X, y).predict(X) == y))
+            self.assertGreater(accuracy, 0.95, msg=f"{type(model).__name__} failed on separable data")
+
+    def test_cross_validation_service(self):
+        from backend.services.train_service import run_cross_validation
+
+        result = run_cross_validation("knn", self.X, self.y, n_splits=4, k=3)
+        self.assertEqual(len(result["folds"]), 4)
+        self.assertIn("accuracy", result["summary"])
+        self.assertIn("mean", result["summary"]["accuracy"])
 
 
 if __name__ == "__main__":
