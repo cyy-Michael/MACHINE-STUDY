@@ -7,13 +7,19 @@
 
 ## 当前已完成
 
+- 自实现线性回归：`backend/algorithms/linear_regression.py`
+- 自实现逻辑回归（One-vs-Rest 多分类）：`backend/algorithms/logistic_regression.py`
+- 自实现 K-近邻：`backend/algorithms/knn.py`
+- 自实现决策树（CART，基尼指数）：`backend/algorithms/decision_tree.py`
+- 自实现支持向量机（线性核，合页损失）：`backend/algorithms/svm.py`
 - 自实现 K-平均聚类：`backend/algorithms/kmeans.py`
 - 自实现随机森林：`backend/algorithms/random_forest.py`
 - 自实现高斯朴素贝叶斯：`backend/algorithms/naive_bayes.py`
 - 自实现 PCA 降维：`backend/algorithms/pca.py`
 - 自实现梯度增强：`backend/algorithms/gradient_boosting.py`
 - 统一算法注册表：`backend/algorithms/registry.py`
-- 数据读取、训练/测试划分、标准化和评价指标基础模块
+- 数据读取、训练/测试划分、分层 K 折交叉验证（`k_fold_indices` + `run_cross_validation`）、标准化和评价指标基础模块
+- 内置样例数据集（watermelon 内置于代码；iris / diabetes 需可选依赖 scikit-learn）：`backend/data/sample_datasets.py`
 - CLI 演示和单元测试
 
 ## 目录职责
