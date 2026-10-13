@@ -1,97 +1,150 @@
-# MACHINE-STUDY
+# 机器学习实验与可视化平台
 
-# 机器学习实验与可视化平台（初版）
-# 机器学习实验与可视化平台（初版）
+面向课程大作业的机器学习实验平台后端。目标形态是「网页上选数据集 → 选算法 →
+调参数 → 点训练 → 看指标和图表」，本仓库负责**从数据集到结果 JSON 的整条链路**，
+并对外提供 HTTP / WebSocket 接口。
 
-这是一个面向课程大作业的机器学习实验平台骨架。当前版本先完成可独立测试的算法核心和后端分层，为后续接入 FastAPI 后端、Vue 前端和 ECharts 可视化保留明确边界。
+前端由组内其他成员负责，见 [docs/TEAM_WORK.md](docs/TEAM_WORK.md)。
 
-## 当前已完成
+## 快速开始
 
-- 自实现线性回归：`backend/algorithms/linear_regression.py`
-- 自实现逻辑回归（One-vs-Rest 多分类）：`backend/algorithms/logistic_regression.py`
-- 自实现 K-近邻：`backend/algorithms/knn.py`
-- 自实现决策树（CART，基尼指数）：`backend/algorithms/decision_tree.py`
-- 自实现支持向量机（线性核，合页损失）：`backend/algorithms/svm.py`
-- 自实现 K-平均聚类：`backend/algorithms/kmeans.py`
-- 自实现随机森林：`backend/algorithms/random_forest.py`
-- 自实现高斯朴素贝叶斯：`backend/algorithms/naive_bayes.py`
-- 自实现 PCA 降维：`backend/algorithms/pca.py`
-- 自实现梯度增强：`backend/algorithms/gradient_boosting.py`
-- 统一算法注册表：`backend/algorithms/registry.py`
-- 数据读取、训练/测试划分、分层 K 折交叉验证（`k_fold_indices` + `run_cross_validation`）、标准化和评价指标基础模块
-- 内置样例数据集（watermelon 内置于代码；iris / diabetes 需可选依赖 scikit-learn）：`backend/data/sample_datasets.py`
-- CLI 演示和单元测试
+```powershell
+# 1) 建虚拟环境并装依赖
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt          # 运行必需
+pip install -r requirements-dev.txt      # 跑测试才需要（含 httpx2）
+
+# 2) 放好数据集（本体不进仓库，见下一节）
+#    默认读取仓库根的 数据集\ 目录
+
+# 3) 跑测试
+python -m unittest discover              # 期望 141 tests OK
+
+# 4) 启动接口服务
+python -m uvicorn backend.api.main:app --port 8000 --reload
+#    接口文档 http://127.0.0.1:8000/docs
+#    健康检查 http://127.0.0.1:8000/health
+
+# 5) 命令行演示（会跑真实数据集，不需要启动服务）
+python -m backend.main algorithms
+python -m backend.main demo
+```
+
+> **本机注意**：PATH 里的 `python` 可能是 Microsoft Store 的占位程序，会报
+> 「找不到指定的路径」。请使用真实解释器或项目内 `.venv\Scripts\python.exe`。
+
+## 数据集
+
+**数据集本体不提交到 Git**（`.gitignore` 已排除 `数据集/` 以及 `*.csv`/`*.arff`/
+`*.xlsx`/`*.xls`）。换一台电脑时把数据放到仓库根的 `数据集/` 目录即可；
+也可以设置环境变量指向别处：
+
+```powershell
+$env:ML_DATA_ROOT = 'D:\somewhere\数据集'
+```
+
+已登记 **8 个数据集**，元数据在 `backend/data/datasets/*.json`：
+
+| 数据集 | 任务 | 规模 | 格式 | 特点 |
+|---|---|---|---|---|
+| `iris` | 分类 | 147×4 | CSV 无表头 | 最干净的小规模基准；文件 150 行含 3 行重复 |
+| `car` | 分类 | 1728×6 | CSV 无表头 | 全类别特征，类别不平衡 |
+| `phishing` | 分类 | 5849×30 | ARFF | 文件 11055 行含 **5206 行重复**（47%） |
+| `credit` | 分类 | 690×15 | CSV 无表头 | 含 `?` 缺失值 |
+| `ckd` | 分类 | 400×24 | ARFF | 10% 缺失，另有 3 行格式缺陷 |
+| `bike_day` | 回归 | 731×11 | CSV 有表头 | 已剔除泄露列 |
+| `airquality` | 回归 | 8991×12 | CSV 分号 | 脏数据：逗号小数点、`-200` 缺失 |
+| `concrete` | 回归 | 1005×8 | Excel `.xls` | 需要 `xlrd`；文件 1030 行含 25 行重复 |
+
+> 表中的规模是**清洗后的可用样本数**，不是文件行数。加载时会依次做三件事：
+> 修同行宽错位、剔除目标缺失的样本、删除完全重复的行（重复行会让同一行同时
+> 落进训练集和测试集，指标虚高）。接口二会分别报出 `n_rows_raw` 与这三个计数。
+
+新增数据集：在 `backend/data/datasets/` 放一份 JSON（列名、类型、目标列、
+缺失标记、要剔除的列），不需要写解析代码。元数据与文件列数不一致时会直接报错，
+不会静默跑错。详见 [docs/DATASET_CATALOG.md](docs/DATASET_CATALOG.md)。
+
+## 接口一览
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/datasets` | 数据集列表，可按 `task_type` 筛选 |
+| `GET /api/datasets/{name}` | 字段、类型、样例、缺失统计、标签分布 |
+| `GET /api/algorithms` | 算法列表，可按 `task_type` 筛选 |
+| `POST /api/experiments` | 创建实验，**立即返回 202**，训练在线程池执行 |
+| `GET /api/experiments/{id}` | 查询实验状态与完整结果 |
+| `GET /api/experiments` | 历史实验列表 |
+| `WS /ws/experiments/{id}` | 训练进度实时推送 |
+| `GET /health` | 健康检查 |
+
+注意 WebSocket 按规范**不带** `/api` 前缀。每个接口的请求、响应、错误码
+和示例见 [docs/api.md](docs/api.md)。
+
+```powershell
+# 手最快的一次验证
+curl.exe -X POST http://127.0.0.1:8000/api/experiments `
+  -H "Content-Type: application/json" `
+  -d '{\"dataset\":\"iris\",\"algorithm\":\"knn\",\"parameters\":{\"k\":5}}'
+```
 
 ## 目录职责
 
 ```text
 backend/
-├── algorithms/       算法实现；每个模型遵循 fit/predict
-├── api/               预留 HTTP/WebSocket 接口层
-├── data/              数据集读取、数据字典和预处理
-├── services/          训练编排、指标计算和实验记录
-└── main.py            本地 CLI 演示入口
-frontend/              预留 Vue 页面与可视化代码
-tests/                 算法和服务测试
-docs/                  架构、分工和协作说明
-experiments/           实验配置与结果（结果不提交）
-数据集/                 本地数据集，仅用于本机开发，不提交 Git
+├── algorithms/       10 个算法实现；统一 fit/predict，走 registry 注册
+├── api/main.py       HTTP/WebSocket 接口层
+├── data/
+│   ├── formats.py    脏 CSV / ARFF / Excel 读取
+│   ├── encoding.py   缺失值、类型推断、one-hot、标签编码
+│   ├── registry.py   数据集登记表（读 metadata）
+│   ├── datasets/     8 份数据集元数据 JSON
+│   └── preprocessing.py  划分、分层 K 折、标准化
+├── services/
+│   ├── experiment.py 端到端编排：数据集 → X/y → 训练 → 结果 JSON
+│   ├── evaluation.py 分类 / 回归 / 聚类指标
+│   ├── runner.py     线程池执行 + 进度订阅
+│   ├── store.py      实验记录落盘
+│   └── train_service.py  单次实验与交叉验证
+└── main.py           本地 CLI 入口
+frontend/             前端（由其他成员负责）
+tests/                141 个用例
+experiments/results/  实验结果（不提交）
+数据集/                本地数据集（不提交）
 ```
 
-详细分层说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，具体认领方式见 [docs/TEAM_WORK.md](docs/TEAM_WORK.md)。
+详细分层见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
-## 环境与运行
+## 必须遵守的约定
+
+1. **统一模型接口**：继承 `BaseModel`，实现 `fit`/`predict`；分类提供
+   `predict_proba`；聚类与降维提供 `transform`。参数非法抛 `ValueError`，
+   未 fit 先 predict 抛 `RuntimeError`。
+2. **建模只走注册表**：`registry.create_algorithm(name, **params)`，
+   不要在 API 里写算法分支。
+3. **预处理防泄露**（评分点）：划分和所有统计量（缺失值填充、标准化）
+   **只能来自训练集**。编码层故意保留 `np.nan`，把填充推迟到
+   `train_test_split` 之后，就是为了这件事。
+4. **算法层不读文件、不依赖 HTTP**；API 层不实现算法。
+5. **结果 JSON 里不放模型对象**——它不可序列化，且 `inf`/`nan` 也不是合法 JSON。
+
+## 测试
 
 ```powershell
-python -m venv .venv
-\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m unittest discover -v
-python -m backend.main demo
-python -m backend.main algorithms
+python -m unittest discover              # 全部
+python -m unittest discover -s tests -v  # 详细输出
 ```
 
-当前算法核心只依赖 NumPy。后续增加 FastAPI、Vue 或 ECharts 时，应分别更新后端/前端依赖文件，不要把前端依赖混入 Python 环境。
+数据集本体不在仓库里，所以依赖真实数据的 50 个用例在缺少数据时会**自动跳过**
+而不是失败：
 
-## 数据集规则
-
-方案文档要求数据集本体不要上传到 GitHub。本地现有数据集位于 `数据集/`，已经由 `.gitignore` 忽略。接入数据层时，建议按以下方式整理：
-
-```text
-data/local/<dataset-name>/raw/       原始文件
-data/local/<dataset-name>/metadata.json  字段、标签和任务说明
 ```
-
-提交仓库时只提交数据字典、下载地址、文件名和必要的样例，不提交数据集压缩包或原始数据。
-
-## 统一模型约定
-
-监督学习模型：
-
-```python
-model.fit(X_train, y_train)
-prediction = model.predict(X_test)
+有数据  -> Ran 141 tests, OK
+无数据  -> Ran 141 tests, OK (skipped=50)
 ```
-
-聚类/降维模型：
-
-```python
-model.fit(X_train)
-labels_or_components = model.predict(X_test)
-```
-
-分类模型提供 `predict_proba`；PCA 和 K-Means 提供 `transform`。新增算法时，先在 `registry.py` 注册，再补充 `tests/` 测试，后端无需为每个算法写一套分支。
-
-## 当前边界
-
-本次初版不实现具体的 Vue 页面、FastAPI 路由、WebSocket 和数据库。它们分别在 `frontend/`、`backend/api/`、`backend/services/` 和 `experiments/` 约定了接入位置，后续成员可按分工并行开发。
 
 ## Git 协作
 
-- `main`：稳定版本。
-- `dev`：集成分支。
-- `feature/algorithm-*`：算法分支。
-- `feature/backend-*`：后端分支。
-- `feature/frontend-*`：前端分支。
-
-提交信息使用 `feat:`、`fix:`、`test:`、`docs:`、`refactor:` 等前缀。每个成员提交自己的模块测试和说明。
+- `main`：稳定版本（受保护，改动走 PR）。
+- 提交信息使用 `feat:`、`fix:`、`test:`、`docs:`、`refactor:`、`chore:` 前缀。
+- 不要提交 `.venv/`、`.vs/`、`__pycache__/`、`数据集/`、`教案/`、`experiments/results/`。
