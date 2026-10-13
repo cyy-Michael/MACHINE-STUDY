@@ -1,0 +1,29 @@
+{
+  "name": "car",
+  "display_name": "汽车评估 Car Evaluation",
+  "task_type": "classification",
+  "target": "class",
+  "description": "汽车 acceptability 评估：6 个特征全部是类别型，1728 条覆盖完整属性空间，4 个类别。用于演示类别编码与类别不平衡。",
+  "source": {
+    "path": "分类/数据集2 - 副本/car.data",
+    "format": "csv",
+    "delimiter": ",",
+    "has_header": false
+  },
+  "columns": ["buying", "maint", "doors", "persons", "lug_boot", "safety", "class"],
+  "dtypes": {
+    "buying": "nominal",
+    "maint": "nominal",
+    "doors": "nominal",
+    "persons": "nominal",
+    "lug_boot": "nominal",
+    "safety": "nominal",
+    "class": "nominal"
+  },
+  "drop_columns": [],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["decision_tree", "random_forest", "gaussian_naive_bayes", "knn", "svm"],
+  "shape": {"n_samples": 1728, "n_features": 6},
+  "notes": "全部为类别特征，走 one-hot 后维度从 6 升到约 21。car.names 写的取值拼写是 v-high / 5-more / v-good，而 car.data 实际是 vhigh / 5more / vgood —— 以数据为准。类别严重不平衡：unacc 1210 条(70%)、acc 384、good 69、vgood 65，所以 accuracy 会虚高，看 macro-F1 更有意义。"
+}
