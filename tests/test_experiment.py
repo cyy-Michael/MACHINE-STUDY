@@ -7,6 +7,7 @@ import unittest
 
 import numpy as np
 
+from backend.data.registry import get_spec
 from backend.services.experiment import (
     ExperimentError,
     algorithm_task_type,
@@ -76,7 +77,10 @@ class ClassificationExperimentTest(unittest.TestCase):
         self.assertEqual(result["dataset"], "iris")
         self.assertEqual(result["task_type"], "classification")
         self.assertGreater(result["metrics"]["accuracy"], 0.8)
-        self.assertEqual(result["split"]["n_train"] + result["split"]["n_test"], 150)
+        self.assertEqual(
+            result["split"]["n_train"] + result["split"]["n_test"],
+            get_spec("iris").n_samples,
+        )
         self.assertIsNone(result["error"])
 
     def test_result_is_strictly_json_serializable(self):

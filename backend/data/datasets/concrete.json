@@ -23,6 +23,6 @@
   "missing_markers": ["", "?"],
   "decimal_comma": false,
   "recommended_algorithms": ["linear_regression", "random_forest", "gradient_boosting"],
-  "shape": {"n_samples": 1030, "n_features": 8},
-  "notes": "格式是旧版 BIFF 二进制 .xls（不是 .xlsx），openpyxl 读不了，必须用 xlrd —— 已在 requirements.txt 声明。原表头是很长的 UCI 全名，为便于前端展示，metadata 的 columns 用了简化列名，对应关系：cement=Cement (component 1)、blast_furnace_slag=Blast Furnace Slag (component 2)、fly_ash=Fly Ash (component 3)、water=Water (component 4)、superplasticizer=Superplasticizer (component 5)、coarse_aggregate=Coarse Aggregate (component 6)、fine_aggregate=Fine Aggregate (component 7)、age=Age (day)、compressive_strength=Concrete compressive strength(MPa, megapascals)。全部为数值列，无缺失。"
+  "shape": {"n_samples": 1005, "n_features": 8},
+  "notes": "格式是旧版 BIFF 二进制 .xls（不是 .xlsx），openpyxl 读不了，必须用 xlrd —— 已在 requirements.txt 声明。原表头是很长的 UCI 全名，为便于前端展示，metadata 的 columns 用了简化列名，对应关系：cement=Cement (component 1)、blast_furnace_slag=Blast Furnace Slag (component 2)、fly_ash=Fly Ash (component 3)、water=Water (component 4)、superplasticizer=Superplasticizer (component 5)、coarse_aggregate=Coarse Aggregate (component 6)、fine_aggregate=Fine Aggregate (component 7)、age=Age (day)、compressive_strength=Concrete compressive strength(MPa, megapascals)。全部为数值列，无缺失。文件里是 1030 行，其中 25 行完全重复，去重后 1005 行。另外还有 9 组「配合比与龄期完全相同但抗压强度不同」的记录 —— 这是真实的实验误差，无法通过去重消除，它决定了本数据集 R² 不可能接近 1。"
 }

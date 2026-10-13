@@ -52,11 +52,13 @@ class DatasetEndpointTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["name"], "iris")
-        self.assertEqual(payload["n_samples"], 150)
+        # 文件 150 行，去重后 147 行
+        self.assertEqual(payload["n_samples"], 147)
         self.assertEqual(payload["target"], "class")
         self.assertEqual(len(payload["fields"]), 5)
         self.assertIn("label_distribution", payload)
-        self.assertEqual(sum(payload["label_distribution"].values()), 150)
+        self.assertEqual(sum(payload["label_distribution"].values()), 147)
+        self.assertEqual(payload["duplicate_rows"], 3)
 
     def test_dataset_detail_reports_missing_counts(self):
         payload = self.client.get("/api/datasets/ckd").json()

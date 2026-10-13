@@ -12,6 +12,8 @@ import numpy as np
 
 from backend.data.encoding import (
     build_design_matrix,
+    deduplicate_rows,
+    duplicate_row_count,
     encode_target,
     impute_with_train_statistics,
     infer_column_types,
@@ -181,6 +183,35 @@ class MissingReportTest(unittest.TestCase):
         rows = [["1", "?"], ["?", "2"], ["3", "?"]]
         report = missing_report(header, rows, ["", "?"])
         self.assertEqual(report, {"a": 1, "b": 2})
+
+
+class DuplicateRowsTest(unittest.TestCase):
+    def test_counts_exact_duplicates(self):
+        rows = [["1", "a"], ["2", "b"], ["1", "a"], ["1", "a"]]
+        self.assertEqual(duplicate_row_count(rows), 2)
+
+    def test_whitespace_only_differences_count_as_duplicates(self):
+        """去空白后再比较，避免 ' a ' 与 'a' 被当成两行。"""
+        rows = [["1", "a"], [" 1 ", " a "]]
+        self.assertEqual(duplicate_row_count(rows), 1)
+
+    def test_deduplicate_keeps_first_occurrence_order(self):
+        rows = [["1", "a"], ["2", "b"], ["1", "a"]]
+        unique, removed = deduplicate_rows(rows)
+        self.assertEqual(removed, 1)
+        self.assertEqual(unique, [["1", "a"], ["2", "b"]])
+
+    def test_rows_differing_only_in_target_are_not_duplicates(self):
+        """特征相同但标签不同属于冲突样本，不能当重复行删掉。"""
+        rows = [["1", "a", "yes"], ["1", "a", "no"]]
+        self.assertEqual(duplicate_row_count(rows), 0)
+
+    def test_no_duplicates_returns_zero(self):
+        rows = [["1"], ["2"], ["3"]]
+        self.assertEqual(duplicate_row_count(rows), 0)
+        unique, removed = deduplicate_rows(rows)
+        self.assertEqual(removed, 0)
+        self.assertEqual(unique, rows)
 
 
 if __name__ == "__main__":

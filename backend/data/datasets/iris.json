@@ -22,6 +22,6 @@
   "missing_markers": ["", "?"],
   "decimal_comma": false,
   "recommended_algorithms": ["knn", "decision_tree", "random_forest", "logistic_regression", "svm", "gaussian_naive_bayes", "pca"],
-  "shape": {"n_samples": 150, "n_features": 4},
-  "notes": "文件无表头，4 个特征列名取自同目录 iris.names 的属性说明。3 个类别各 50 条，完全均衡。数值范围集中，不做标准化也能得到合理结果，但标准化后 KNN/SVM 更稳。"
+  "shape": {"n_samples": 147, "n_features": 4},
+  "notes": "文件无表头，4 个特征列名取自同目录 iris.names 的属性说明。文件里是 150 行，其中 3 行与前面的行完全重复，去重后剩 147 行，类别分布变成 48/50/49（不再是教科书上的 50/50/50）。这 3 个重复行的标签与原行完全一致，不存在标签冲突，所以去重是无争议的。数值范围集中，不做标准化也能得到合理结果，但标准化后 KNN/SVM 更稳。"
 }

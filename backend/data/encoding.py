@@ -365,3 +365,42 @@ def dataset_summary(matrix: DesignMatrix) -> dict[str, Any]:
         "column_types": matrix.column_types,
         "coerced_missing": matrix.coerced_missing,
     }
+
+
+# --------------------------------------------------------------------------
+# 重复行
+# --------------------------------------------------------------------------
+
+def row_signature(row: list[str]) -> tuple[str, ...]:
+    """整行的比较键。去空白后再比，避免 "a" 与 " a " 被当成两行。"""
+    return tuple(cell.strip() for cell in row)
+
+
+def duplicate_row_count(rows: list[list[str]]) -> int:
+    """完全重复的行数。
+
+    这不是理论问题：实测 phishing 有 5206/11055 行重复（47%），iris 3 行，
+    concrete 25 行。重复行会让同一行同时落进训练集与测试集，指标虚高。
+    """
+    seen: set[tuple[str, ...]] = set()
+    duplicates = 0
+    for row in rows:
+        key = row_signature(row)
+        if key in seen:
+            duplicates += 1
+        else:
+            seen.add(key)
+    return duplicates
+
+
+def deduplicate_rows(rows: list[list[str]]) -> tuple[list[list[str]], int]:
+    """按整行去重，保留首次出现，返回 ``(去重后的行, 被删掉的行数)``。"""
+    seen: set[tuple[str, ...]] = set()
+    unique: list[list[str]] = []
+    for row in rows:
+        key = row_signature(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(row)
+    return unique, len(rows) - len(unique)

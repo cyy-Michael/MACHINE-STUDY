@@ -155,6 +155,24 @@ class DatasetLoadingTest(unittest.TestCase):
             with self.subTest(dataset=name):
                 self.assertEqual(set(loaded.y.tolist()), set(range(len(loaded.label_names))))
 
+    def test_describe_and_load_agree_on_sample_count(self):
+        """接口二与训练必须用同一套口径。
+
+        否则会出现「详情页说 150 行、实际只训练 147 行」这种前端对不上数的
+        问题。去重与目标缺失剔除都要在两个入口保持一致。
+        """
+        for name in dataset_names():
+            loaded = load_dataset(name)
+            described = describe_dataset(name)
+            with self.subTest(dataset=name):
+                self.assertEqual(described["n_samples"], loaded.X.shape[0])
+                self.assertEqual(
+                    described["duplicate_rows"], loaded.dropped_duplicates
+                )
+                self.assertEqual(
+                    described["dropped_target_missing_rows"], loaded.dropped_rows
+                )
+
     def test_describe_dataset_shape(self):
         payload = describe_dataset("iris")
         self.assertEqual(payload["name"], "iris")
@@ -165,9 +183,33 @@ class DatasetLoadingTest(unittest.TestCase):
         )
 
     def test_iris_matches_documented_distribution(self):
+        """iris 文件里 150 行含 3 行完全重复，去重后是 48/50/49。
+
+        这 3 个重复行的标签与原行一致，没有标签冲突，所以去重是安全的。
+        """
         loaded = load_dataset("iris")
+        self.assertEqual(loaded.dropped_duplicates, 3)
         counts = np.bincount(loaded.y)
-        np.testing.assert_array_equal(counts, [50, 50, 50])
+        np.testing.assert_array_equal(counts, [48, 50, 49])
+
+    def test_duplicate_rows_are_dropped(self):
+        """重复行会让同一行同时落进训练集和测试集，导致指标虚高。"""
+        expected = {"iris": 3, "concrete": 25, "phishing": 5206}
+        for name, duplicates in expected.items():
+            loaded = load_dataset(name)
+            with self.subTest(dataset=name):
+                self.assertEqual(loaded.dropped_duplicates, duplicates)
+
+    def test_datasets_without_duplicates_report_zero(self):
+        for name in ("car", "ckd", "credit", "bike_day"):
+            loaded = load_dataset(name)
+            with self.subTest(dataset=name):
+                self.assertEqual(loaded.dropped_duplicates, 0)
+
+    def test_describe_reports_duplicate_count(self):
+        payload = describe_dataset("phishing")
+        self.assertEqual(payload["duplicate_rows"], 5206)
+        self.assertTrue(payload["drop_duplicates"])
 
     def test_ckd_rows_with_extra_comma_are_repaired(self):
         """ckd 有 3 行字段数多一个，修复后类别分布应是文档中的 250/150。"""

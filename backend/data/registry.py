@@ -19,6 +19,8 @@ from typing import Any, NamedTuple
 
 from .encoding import (
     build_design_matrix,
+    deduplicate_rows,
+    duplicate_row_count,
     encode_target,
     is_missing,
     missing_marker_set,
@@ -60,6 +62,7 @@ class DatasetSpec:
     drop_columns: list[str] = field(default_factory=list)
     missing_markers: list[str] = field(default_factory=lambda: ["", "?"])
     decimal_comma: bool = False
+    drop_duplicates: bool = True
     recommended_algorithms: list[str] = field(default_factory=list)
     shape: dict[str, int] = field(default_factory=dict)
     notes: str = ""
@@ -82,7 +85,8 @@ class LoadedDataset(NamedTuple):
     label_names: list[str]
     column_types: dict[str, str]
     coerced_missing: dict[str, int]
-    dropped_rows: int = 0   # 目标缺失而被剔除的样本数
+    dropped_rows: int = 0         # 目标缺失而被剔除的样本数
+    dropped_duplicates: int = 0   # 完全重复而被剔除的样本数
 
 
 # --------------------------------------------------------------------------
@@ -244,6 +248,12 @@ def load_dataset(name: str) -> LoadedDataset:
     if not rows:
         raise DatasetUnavailable(f"{name}：目标列 {spec.target!r} 全部缺失，没有可用样本")
 
+    # 完全重复的行既不代表新信息，还会让同一行同时落进训练集和测试集，
+    # 使评估指标虚高（phishing 有 47% 的行是重复的）。
+    dropped_duplicates = 0
+    if spec.drop_duplicates:
+        rows, dropped_duplicates = deduplicate_rows(rows)
+
     matrix = build_design_matrix(
         table.header,
         rows,
@@ -268,7 +278,34 @@ def load_dataset(name: str) -> LoadedDataset:
         column_types=matrix.column_types,
         coerced_missing=matrix.coerced_missing,
         dropped_rows=dropped,
+        dropped_duplicates=dropped_duplicates,
     )
+
+
+def _usable_rows(spec: DatasetSpec, table: Table) -> tuple[list[list[str]], int, int]:
+    """按与 :func:`load_dataset` 完全相同的规则算出可用行。
+
+    返回 ``(可用行, 目标缺失被剔除的行数, 重复被剔除的行数)``。
+    接口二和加载必须用同一套口径，否则「详情说 150 行、训练只用 147 行」
+    这种不一致会让前端对不上数。
+    """
+    markers = missing_marker_set(tuple(spec.missing_markers), spec.decimal_comma)
+    index = table.header.index(spec.target)
+
+    kept: list[list[str]] = []
+    target_missing = 0
+    for row in table.rows:
+        cell = row[index] if index < len(row) else ""
+        if is_missing(cell, markers, spec.decimal_comma):
+            target_missing += 1
+            continue
+        kept.append(row)
+
+    if spec.drop_duplicates:
+        kept, duplicates = deduplicate_rows(kept)
+    else:
+        duplicates = duplicate_row_count(kept)
+    return kept, target_missing, duplicates
 
 
 def describe_dataset(name: str) -> dict[str, Any]:
@@ -279,6 +316,7 @@ def describe_dataset(name: str) -> dict[str, Any]:
     missing = missing_report(
         table.header, table.rows, missing_markers, spec.decimal_comma
     )
+    usable, target_missing, duplicates = _usable_rows(spec, table)
 
     fields = []
     for index, column in enumerate(table.header):
@@ -300,12 +338,17 @@ def describe_dataset(name: str) -> dict[str, Any]:
         "task_type": spec.task_type,
         "description": spec.description,
         "target": spec.target,
-        "n_samples": len(table.rows),
+        # n_samples 指实际参与建模的样本数，不是文件行数
+        "n_samples": len(usable),
+        "n_rows_raw": len(table.rows),
         "n_features": max(0, len(table.header) - 1 - len(spec.drop_columns)),
         "source_format": table.format,
         "fields": fields,
         "missing_total": int(sum(missing.values())),
         "repaired_rows": table.repaired,
+        "dropped_target_missing_rows": target_missing,
+        "duplicate_rows": duplicates,
+        "drop_duplicates": spec.drop_duplicates,
         "recommended_algorithms": spec.recommended_algorithms,
         "notes": spec.notes,
     }
@@ -313,7 +356,7 @@ def describe_dataset(name: str) -> dict[str, Any]:
     if spec.task_type == "classification":
         target_index = table.header.index(spec.target)
         distribution: dict[str, int] = {}
-        for row in table.rows:
+        for row in usable:
             label = row[target_index].strip() if target_index < len(row) else ""
             distribution[label] = distribution.get(label, 0) + 1
         payload["label_distribution"] = distribution

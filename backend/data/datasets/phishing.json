@@ -34,6 +34,6 @@
   "missing_markers": ["", "?"],
   "decimal_comma": false,
   "recommended_algorithms": ["decision_tree", "random_forest", "logistic_regression", "knn", "gaussian_naive_bayes", "svm"],
-  "shape": {"n_samples": 11055, "n_features": 30},
-  "notes": "ARFF 里这些特征被声明成 {-1,1} 这类名义集合，但取值本身就是有序整数编码，所以按数值处理（30 个整数特征）。无缺失值。Result 取值 -1(钓鱼) / 1(合法)。注意：属性名 popUpWidnow 是原数据集里的拼写错误，保留原样以便与 UCI 对照。"
+  "shape": {"n_samples": 5849, "n_features": 30},
+  "notes": "ARFF 里这些特征被声明成 {-1,1} 这类名义集合，但取值本身就是有序整数编码，所以按数值处理（30 个整数特征）。无缺失值。Result 取值 -1(钓鱼) / 1(合法)。⚠️ 这个数据集的重复情况非常严重：文件里 11055 行中有 5206 行与前面的行完全重复（47%），去重后只剩 5849 行，标签分布变成 -1:3019 / 1:2830。保留重复行会让同一行同时落进训练集与测试集，指标明显虚高。此外还有 64 组「特征完全相同但标签相反」的矛盾记录（去重消不掉），它们构成了本数据集准确率的理论上限，所以这里不要期待 99% 以上的准确率。注意属性名 popUpWidnow 是原数据集里的拼写错误，保留原样以便与 UCI 对照。"
 }
