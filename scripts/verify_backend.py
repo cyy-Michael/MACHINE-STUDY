@@ -360,6 +360,7 @@ def check_errors_and_logging(has_data: bool):
         return
 
     configure_logging("INFO", force=True)
+    quiet_console_logging()  # 重配后又打开了控制台输出，再压一次
     probe = f"验收自检标记-{time.time():.0f}"
     get_logger("verify").info(probe)
     for handler in logging.getLogger("backend").handlers:
@@ -410,6 +411,7 @@ def main() -> int:
         render()
         return 1
 
+    quiet_console_logging()
     data_ok = check_data_layer()
     check_preprocessing()
     check_algorithms()
@@ -424,6 +426,26 @@ def main() -> int:
         print("      或设置环境变量 ML_DATA_ROOT 指向数据目录即可。")
 
     return render()
+
+
+def quiet_console_logging() -> None:
+    """自检期间压掉控制台日志，只保留文件日志。
+
+    日志走 stderr、报告走 stdout，两者在终端里交错显示，会把验收报告冲得
+    七零八落（实测 INFO 行甚至跑到「环境」标题前面）。自检是给验收的人看的，
+    应该干净。
+
+    **文件日志照常记录**——「7 日志写入文件」那一项仍然会实际验证它。
+    ``RotatingFileHandler`` 是 ``FileHandler`` 的子类，用这个区分文件与控制台。
+    """
+    import logging
+
+    from backend.logging_config import configure_logging
+
+    configure_logging()  # 确保 handler 已经建立
+    for handler in logging.getLogger("backend").handlers:
+        if not isinstance(handler, logging.FileHandler):
+            handler.setLevel(logging.CRITICAL)
 
 
 def render() -> int:
