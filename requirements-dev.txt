@@ -1,0 +1,11 @@
+# 开发与测试额外依赖
+# 安装：pip install -r requirements-dev.txt
+-r requirements.txt
+
+# FastAPI TestClient 需要它（Starlette 1.8 起用 httpx2 取代 httpx，
+# 只装了 httpx 会在 import TestClient 时直接 RuntimeError）
+httpx2>=2.0
+
+# 可选：仅 backend/data/sample_datasets.py 的内置样例与「自实现 vs sklearn
+# 对照实验」使用；平台登记的 8 个数据集完全不依赖它
+scikit-learn>=1.3

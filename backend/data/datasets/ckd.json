@@ -26,5 +26,5 @@
   "decimal_comma": false,
   "recommended_algorithms": ["decision_tree", "random_forest", "gaussian_naive_bayes", "knn", "logistic_regression"],
   "shape": {"n_samples": 400, "n_features": 24},
-  "notes": "缺失标记是 ?，共 1013 个缺失单元格（约占 400x24 的 10.5%）。最严重的是 rbc（152/400 = 38% 缺失）、rbcc(131)、wbcc(106)。sg/al/su 在 ARFF 里声明为有限集合，但取值本身有序，按数值处理。注意：appet 声明只有 {good,poor}，pe 声明只有 {yes,no}，实测数据里各自混进了额外取值 —— 这是原数据集固有的噪声，编码层会把无法归类的取值单独成列，不静默丢弃。类别分布：ckd 250 / notckd 150。"
+  "notes": "缺失标记是 ?，共 1012 个缺失单元格（约占 400x24 的 10.5%）。原始文件统计是 1013，差额来自下面那条行宽问题：多余的那个空字段原本也被算作一个缺失值，行对齐修复后不再计入，所以 1012 才是清洗后的正确值。最严重的是 rbc（152/400 = 38% 缺失）、rbcc(131)、wbcc(106)。sg/al/su 在 ARFF 里声明为有限集合，但取值本身有序，按数值处理。注意：有 3 行的字段数是 26 而不是 25 —— 多出一个空字段，删掉它之后整行才成立（htn=no, dm=no, cad=no, appet=good, pe=no, ane=no, class=notckd）。这是原数据集固有的格式缺陷，读取层会修复并回报修复行数，不静默丢弃样本。另外 appet 声明只有 {good,poor}、pe 声明只有 {yes,no}，实测各自混进了额外取值，编码层会把无法归类的取值单独成列。类别分布：ckd 250 / notckd 150。"
 }
