@@ -19,7 +19,7 @@ pip install -r requirements-dev.txt      # 跑测试才需要（含 httpx2）
 #    默认读取仓库根的 数据集\ 目录
 
 # 3) 跑测试
-python -m unittest discover              # 期望 141 tests OK
+python -m unittest discover              # 期望 157 tests OK
 
 # 4) 启动接口服务
 python -m uvicorn backend.api.main:app --port 8000 --reload
@@ -92,11 +92,12 @@ curl.exe -X POST http://127.0.0.1:8000/api/experiments `
 
 ```text
 backend/
+├── logging_config.py 统一日志：控制台 + logs/backend.log（轮转，UTF-8）
 ├── algorithms/       10 个算法实现；统一 fit/predict，走 registry 注册
-├── api/main.py       HTTP/WebSocket 接口层
+├── api/main.py       HTTP/WebSocket 接口层、CORS、统一错误响应、请求日志
 ├── data/
-│   ├── formats.py    脏 CSV / ARFF / Excel 读取
-│   ├── encoding.py   缺失值、类型推断、one-hot、标签编码
+│   ├── formats.py    脏 CSV / ARFF / Excel 读取、行宽修复
+│   ├── encoding.py   缺失值、类型推断、one-hot、重复行、防泄露填充
 │   ├── registry.py   数据集登记表（读 metadata）
 │   ├── datasets/     8 份数据集元数据 JSON
 │   └── preprocessing.py  划分、分层 K 折、标准化
@@ -108,12 +109,24 @@ backend/
 │   └── train_service.py  单次实验与交叉验证
 └── main.py           本地 CLI 入口
 frontend/             前端（由其他成员负责）
-tests/                141 个用例
+tests/                157 个用例
 experiments/results/  实验结果（不提交）
+logs/                 运行日志（不提交）
 数据集/                本地数据集（不提交）
 ```
 
 详细分层见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+## 文档导航
+
+| 我想…… | 看这里 |
+|---|---|
+| 把项目跑起来 | 本文件上面的「快速开始」 |
+| 对接接口、看请求响应示例 | [docs/api.md](docs/api.md) |
+| **改代码、加数据集/算法/接口、排错** | **[docs/BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md)** |
+| 理解分层设计 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 看数据集字段说明 | [docs/DATASET_CATALOG.md](docs/DATASET_CATALOG.md) |
+| 看组内分工 | [docs/TEAM_WORK.md](docs/TEAM_WORK.md) |
 
 ## 必须遵守的约定
 
@@ -127,6 +140,8 @@ experiments/results/  实验结果（不提交）
    `train_test_split` 之后，就是为了这件事。
 4. **算法层不读文件、不依赖 HTTP**；API 层不实现算法。
 5. **结果 JSON 里不放模型对象**——它不可序列化，且 `inf`/`nan` 也不是合法 JSON。
+6. **用 `logging` 不用 `print`**。`get_logger(__name__)` 是唯一入口；测试用断言而不是
+   打印结果（曾经因为 print emoji 在 GBK 控制台抛异常，把整个测试套件搞挂）。
 
 ## 测试
 
@@ -139,9 +154,23 @@ python -m unittest discover -s tests -v  # 详细输出
 而不是失败：
 
 ```
-有数据  -> Ran 141 tests, OK
-无数据  -> Ran 141 tests, OK (skipped=50)
+有数据  -> Ran 157 tests, OK
+无数据  -> Ran 157 tests, OK (skipped=59)
 ```
+
+## 日志
+
+日志同时输出到控制台和 `logs/backend.log`（UTF-8，单文件 2 MB、保留 3 个备份）：
+
+```powershell
+$env:ML_LOG_LEVEL = 'DEBUG'    # 默认 INFO
+$env:ML_LOG_DIR   = 'D:\mylogs'
+$env:ML_LOG_TO_FILE = '0'      # 只输出到控制台
+```
+
+每个响应都带 `X-Process-Time-Ms` 响应头。训练失败的完整堆栈可在
+`GET /api/experiments/{id}` 的 `traceback` 字段取到。详见
+[docs/BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md#七日志)。
 
 ## Git 协作
 

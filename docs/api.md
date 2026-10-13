@@ -317,6 +317,12 @@ GET http://127.0.0.1:8000/api/experiments/20261013-201448-knn-iris-292cbd
   "created_at": "2026-10-13T20:14:48",
   "request": { "dataset": "iris", "algorithm": "knn", "parameters": { "k": 5 },
                "test_size": 0.2, "random_state": 42, "standardize": true },
+  "logs": [
+    { "progress": 0.0, "message": "排队中" },
+    { "progress": 0.25, "message": "划分训练集与测试集" },
+    { "progress": 0.55, "message": "训练 knn" },
+    { "progress": 1.0, "message": "实验完成" }
+  ],
   "result": {
     "experiment_id": "20261013-201448-knn-iris-292cbd",
     "status": "finished",
@@ -358,12 +364,42 @@ GET http://127.0.0.1:8000/api/experiments/20261013-201448-knn-iris-292cbd
     "created_at": "2026-10-13T20:14:48",
     "saved": true
   },
-  "error": null
+  "error": null,
+  "traceback": null
 }
 ```
 
+顶层字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| status | string | `pending` / `running` / `finished` / `failed` |
+| progress | float | 0~1，训练进度 |
+| message | string | 当前阶段的中文描述 |
+| logs | array | 完整进度日志，每项 `{progress, message}`，**以结果收尾** |
+| result | object | 训练成功时的完整结果；失败时为 `null` |
+| error | string | 失败原因（成功时为 `null`） |
+| traceback | string | **仅失败时返回**的 Python 堆栈 |
+
+> **失败时怎么排错**：`GET /api/experiments/{id}` 的 `traceback` 字段带完整堆栈，
+> `logs` 的最后一条会写明失败原因。同一个实验的失败记录也会写进
+> `experiments/results/<id>.json`，事后不用翻控制台。
+>
+> 失败的典型响应：
+>
+> ```json
+> {
+>   "experiment_id": "20261013-202729-knn-iris-47e411",
+>   "status": "failed",
+>   "message": "ValueError: k must be at least 1",
+>   "logs": [ "...", { "progress": 0.55, "message": "失败：ValueError: k must be at least 1" } ],
+>   "result": null,
+>   "error": "ValueError: k must be at least 1",
+>   "traceback": "Traceback (most recent call last):\n  File \".../experiment.py\", ...\nValueError: k must be at least 1"
+> }
+> ```
+
 `status` 取值：`pending`（排队中）、`running`（训练中）、`finished`、`failed`。
-失败时 `error` 是错误信息字符串。
 
 ### 各任务类型的 metrics 字段
 
@@ -454,6 +490,34 @@ ws.onmessage = (event) => {
 
 > 连接时若任务**已经结束**，服务会先发 `snapshot` 再直接发 `result` / `error`
 > 然后关闭，所以前端不需要区分「先连还是后连」。
+
+---
+
+## 日志与排查
+
+后端日志同时输出到控制台和 `logs/backend.log`（UTF-8，单文件 2 MB，保留 3 个备份）。
+
+| 环境变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `ML_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `ML_LOG_DIR` | 仓库根的 `logs/` | 日志目录 |
+| `ML_LOG_TO_FILE` | `1` | 设为 `0` 只输出到控制台 |
+
+日志长这样（含请求方法、路径、状态码、耗时）：
+
+```
+2026-10-13 20:26:04 INFO     backend.api.main    POST /api/experiments -> 202（2.9 ms）
+2026-10-13 20:26:04 INFO     backend.services.runner  实验开始 id=20261013-202604-knn-iris-85e6e4
+2026-10-13 20:26:04 WARNING  backend.services.runner  实验失败 id=20261013-202604-knn-iris-85e6e4：ValueError: k must be at least 1
+2026-10-13 20:26:04 WARNING  backend.api.main    404 实验不存在 /api/experiments/nope："找不到实验 'nope'"
+```
+
+排查建议：
+
+1. 先看 `logs/backend.log` 的最后几行，请求级问题那里都有。
+2. 训练失败看接口五的 `traceback`，比日志更完整。
+3. 想看每次训练的内部步骤，把 `ML_LOG_LEVEL` 设成 `DEBUG`。
+4. 每个响应都带 `X-Process-Time-Ms` 响应头，`curl -i` 就能看到后端耗时。
 
 ---
 
