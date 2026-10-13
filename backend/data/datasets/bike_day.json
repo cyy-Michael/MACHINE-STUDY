@@ -1,0 +1,29 @@
+{
+  "name": "bike_day",
+  "display_name": "共享单车日租量 Bike Sharing (day)",
+  "task_type": "regression",
+  "target": "cnt",
+  "description": "共享单车系统 2011-2012 逐日租赁量，731 条，16 列。无缺失、纯数值，是回归任务的干净基准。",
+  "source": {
+    "path": "回归/数据集1 - 副本/day.csv",
+    "format": "csv",
+    "delimiter": ",",
+    "has_header": true
+  },
+  "columns": [
+    "instant", "dteday", "season", "yr", "mnth", "holiday", "weekday", "workingday",
+    "weathersit", "temp", "atemp", "hum", "windspeed", "casual", "registered", "cnt"
+  ],
+  "dtypes": {
+    "instant": "numeric", "dteday": "nominal", "season": "nominal", "yr": "nominal",
+    "mnth": "nominal", "holiday": "nominal", "weekday": "nominal", "workingday": "nominal",
+    "weathersit": "nominal", "temp": "numeric", "atemp": "numeric", "hum": "numeric",
+    "windspeed": "numeric", "casual": "numeric", "registered": "numeric", "cnt": "numeric"
+  },
+  "drop_columns": ["instant", "dteday", "casual", "registered"],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["linear_regression", "random_forest", "gradient_boosting", "pca"],
+  "shape": {"n_samples": 731, "n_features": 11},
+  "notes": "⚠️ 标签泄露警告：casual + registered 恰好等于 cnt，只要把它们当特征，任何模型都能拿到 R²=1.0。所以 metadata 把 casual/registered 放进 drop_columns，必须剔除。instant 是行号、dteday 是日期字符串（已由 yr/mnth/weekday 等派生列表达），一并剔除。season/yr/mnth/holiday/weekday/workingday/weathersit 虽是整数编码但属于类别语义，这里按 nominal 做 one-hot。"
+}

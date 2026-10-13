@@ -1,0 +1,30 @@
+{
+  "name": "ckd",
+  "display_name": "慢性肾病 Chronic Kidney Disease",
+  "task_type": "classification",
+  "target": "class",
+  "description": "慢性肾病诊断：24 个特征（血液/尿液检验指标，数值与类别混合），400 条，二分类。含大量真实缺失值，是缺失值处理的主要演示案例。",
+  "source": {
+    "path": "分类/数据集2 - 副本 (2)/Chronic_Kidney_Disease/chronic_kidney_disease.arff",
+    "format": "arff"
+  },
+  "columns": [
+    "age", "bp", "sg", "al", "su", "rbc", "pc", "pcc", "ba", "bgr", "bu", "sc",
+    "sod", "pot", "hemo", "pcv", "wbcc", "rbcc", "htn", "dm", "cad", "appet", "pe", "ane", "class"
+  ],
+  "dtypes": {
+    "age": "numeric", "bp": "numeric", "sg": "numeric", "al": "numeric", "su": "numeric",
+    "rbc": "nominal", "pc": "nominal", "pcc": "nominal", "ba": "nominal",
+    "bgr": "numeric", "bu": "numeric", "sc": "numeric", "sod": "numeric", "pot": "numeric",
+    "hemo": "numeric", "pcv": "numeric", "wbcc": "numeric", "rbcc": "numeric",
+    "htn": "nominal", "dm": "nominal", "cad": "nominal",
+    "appet": "nominal", "pe": "nominal", "ane": "nominal",
+    "class": "nominal"
+  },
+  "drop_columns": [],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["decision_tree", "random_forest", "gaussian_naive_bayes", "knn", "logistic_regression"],
+  "shape": {"n_samples": 400, "n_features": 24},
+  "notes": "缺失标记是 ?，共 1013 个缺失单元格（约占 400x24 的 10.5%）。最严重的是 rbc（152/400 = 38% 缺失）、rbcc(131)、wbcc(106)。sg/al/su 在 ARFF 里声明为有限集合，但取值本身有序，按数值处理。注意：appet 声明只有 {good,poor}，pe 声明只有 {yes,no}，实测数据里各自混进了额外取值 —— 这是原数据集固有的噪声，编码层会把无法归类的取值单独成列，不静默丢弃。类别分布：ckd 250 / notckd 150。"
+}

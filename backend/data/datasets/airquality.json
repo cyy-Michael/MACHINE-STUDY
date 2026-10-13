@@ -1,0 +1,30 @@
+{
+  "name": "airquality",
+  "display_name": "空气质量 Air Quality (UCI)",
+  "task_type": "regression",
+  "target": "C6H6(GT)",
+  "description": "意大利某城市空气质量监测：传感器响应与气象条件，目标是苯浓度 C6H6(GT)。这是本项目格式最脏的数据集，用于验证脏 CSV 解析能力。",
+  "source": {
+    "path": "回归/数据集1/AirQualityUCI.csv",
+    "format": "csv",
+    "delimiter": ";",
+    "has_header": true
+  },
+  "columns": [
+    "Date", "Time", "CO(GT)", "PT08.S1(CO)", "NMHC(GT)", "C6H6(GT)", "PT08.S2(NMHC)",
+    "NOx(GT)", "PT08.S3(NOx)", "NO2(GT)", "PT08.S4(NO2)", "PT08.S5(O3)", "T", "RH", "AH"
+  ],
+  "dtypes": {
+    "Date": "nominal", "Time": "nominal",
+    "CO(GT)": "numeric", "PT08.S1(CO)": "numeric", "NMHC(GT)": "numeric",
+    "C6H6(GT)": "numeric", "PT08.S2(NMHC)": "numeric", "NOx(GT)": "numeric",
+    "PT08.S3(NOx)": "numeric", "NO2(GT)": "numeric", "PT08.S4(NO2)": "numeric",
+    "PT08.S5(O3)": "numeric", "T": "numeric", "RH": "numeric", "AH": "numeric"
+  },
+  "drop_columns": ["NMHC(GT)", "Date"],
+  "missing_markers": ["", "?", "-200"],
+  "decimal_comma": true,
+  "recommended_algorithms": ["linear_regression", "random_forest", "gradient_boosting"],
+  "shape": {"n_samples": 8991, "n_features": 12},
+  "notes": "四个脏点，全部由本次实测确认：(1) 分隔符是分号不是逗号；(2) 逗号是小数点（2,6 表示 2.6），所以 decimal_comma=true；(3) -200 是缺失标记而不是真实测量值 —— 注意它在数据里可能写作 -200,0，缺失判断按数值等价匹配，否则会漏判；(4) 文件尾部有 114 行只有分号的空行、以及 2 个恒为空的尾列，读取层自动丢弃。行数变化链条：文件 9472 行 → 去空行与表头后 9357 行 → 目标列 C6H6(GT) 缺失(-200) 的 366 行整行剔除 → 可用 8991 行。目标缺失的样本既不能训练也不能评估，所以剔除而不是填充。NMHC(GT) 有 8557/9357 缺失（91%），无法建模，已剔除。Date 有 391 个取值，作为类别编码会退化成无意义的整数序号，也一并剔除（Time 只有 24 个取值，保留做 one-hot 可表达小时效应）。若要用时序信息，正确做法是从 Date 派生年/月/星期特征，而不是把日期本身当特征。"
+}

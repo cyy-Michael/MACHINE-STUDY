@@ -1,0 +1,39 @@
+{
+  "name": "phishing",
+  "display_name": "钓鱼网站识别 Phishing Websites",
+  "task_type": "classification",
+  "target": "Result",
+  "description": "钓鱼网站检测：30 个整数编码特征（取值 -1/0/1），11055 条，二分类。无缺失，规模最大的分类数据集，用于验证中等规模下的训练耗时。",
+  "source": {
+    "path": "分类/数据集2 - 副本 (6)/Training Dataset.arff",
+    "format": "arff"
+  },
+  "columns": [
+    "having_IP_Address", "URL_Length", "Shortining_Service", "having_At_Symbol",
+    "double_slash_redirecting", "Prefix_Suffix", "having_Sub_Domain", "SSLfinal_State",
+    "Domain_registeration_length", "Favicon", "port", "HTTPS_token", "Request_URL",
+    "URL_of_Anchor", "Links_in_tags", "SFH", "Submitting_to_email", "Abnormal_URL",
+    "Redirect", "on_mouseover", "RightClick", "popUpWidnow", "Iframe", "age_of_domain",
+    "DNSRecord", "web_traffic", "Page_Rank", "Google_Index", "Links_pointing_to_page",
+    "Statistical_report", "Result"
+  ],
+  "dtypes": {
+    "having_IP_Address": "numeric", "URL_Length": "numeric", "Shortining_Service": "numeric",
+    "having_At_Symbol": "numeric", "double_slash_redirecting": "numeric", "Prefix_Suffix": "numeric",
+    "having_Sub_Domain": "numeric", "SSLfinal_State": "numeric", "Domain_registeration_length": "numeric",
+    "Favicon": "numeric", "port": "numeric", "HTTPS_token": "numeric", "Request_URL": "numeric",
+    "URL_of_Anchor": "numeric", "Links_in_tags": "numeric", "SFH": "numeric",
+    "Submitting_to_email": "numeric", "Abnormal_URL": "numeric", "Redirect": "numeric",
+    "on_mouseover": "numeric", "RightClick": "numeric", "popUpWidnow": "numeric",
+    "Iframe": "numeric", "age_of_domain": "numeric", "DNSRecord": "numeric",
+    "web_traffic": "numeric", "Page_Rank": "numeric", "Google_Index": "numeric",
+    "Links_pointing_to_page": "numeric", "Statistical_report": "numeric",
+    "Result": "nominal"
+  },
+  "drop_columns": [],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["decision_tree", "random_forest", "logistic_regression", "knn", "gaussian_naive_bayes", "svm"],
+  "shape": {"n_samples": 11055, "n_features": 30},
+  "notes": "ARFF 里这些特征被声明成 {-1,1} 这类名义集合，但取值本身就是有序整数编码，所以按数值处理（30 个整数特征）。无缺失值。Result 取值 -1(钓鱼) / 1(合法)。注意：属性名 popUpWidnow 是原数据集里的拼写错误，保留原样以便与 UCI 对照。"
+}

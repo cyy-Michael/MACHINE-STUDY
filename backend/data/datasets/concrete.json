@@ -1,0 +1,28 @@
+{
+  "name": "concrete",
+  "display_name": "混凝土抗压强度 Concrete Strength",
+  "task_type": "regression",
+  "target": "compressive_strength",
+  "description": "混凝土配合比与抗压强度：8 个成分/龄期特征，1030 条，纯数值无缺失。用于验证 Excel(.xls) 格式适配。",
+  "source": {
+    "path": "回归/数据集1 - 副本 (3)/Concrete_Data.xls",
+    "format": "excel",
+    "has_header": true
+  },
+  "columns": [
+    "cement", "blast_furnace_slag", "fly_ash", "water",
+    "superplasticizer", "coarse_aggregate", "fine_aggregate", "age",
+    "compressive_strength"
+  ],
+  "dtypes": {
+    "cement": "numeric", "blast_furnace_slag": "numeric", "fly_ash": "numeric",
+    "water": "numeric", "superplasticizer": "numeric", "coarse_aggregate": "numeric",
+    "fine_aggregate": "numeric", "age": "numeric", "compressive_strength": "numeric"
+  },
+  "drop_columns": [],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["linear_regression", "random_forest", "gradient_boosting"],
+  "shape": {"n_samples": 1030, "n_features": 8},
+  "notes": "格式是旧版 BIFF 二进制 .xls（不是 .xlsx），openpyxl 读不了，必须用 xlrd —— 已在 requirements.txt 声明。原表头是很长的 UCI 全名，为便于前端展示，metadata 的 columns 用了简化列名，对应关系：cement=Cement (component 1)、blast_furnace_slag=Blast Furnace Slag (component 2)、fly_ash=Fly Ash (component 3)、water=Water (component 4)、superplasticizer=Superplasticizer (component 5)、coarse_aggregate=Coarse Aggregate (component 6)、fine_aggregate=Fine Aggregate (component 7)、age=Age (day)、compressive_strength=Concrete compressive strength(MPa, megapascals)。全部为数值列，无缺失。"
+}
