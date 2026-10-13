@@ -21,6 +21,9 @@ pip install -r requirements-dev.txt      # 跑测试才需要（含 httpx2）
 # 3) 跑测试
 python -m unittest discover              # 期望 157 tests OK
 
+# 3.5) 一条命令自检（可选，输出可直接贴给组长做验收）
+python scripts\verify_backend.py
+
 # 4) 启动接口服务
 python -m uvicorn backend.api.main:app --port 8000 --reload
 #    接口文档 http://127.0.0.1:8000/docs
@@ -122,6 +125,7 @@ logs/                 运行日志（不提交）
 | 我想…… | 看这里 |
 |---|---|
 | 把项目跑起来 | 本文件上面的「快速开始」 |
+| **验收后端是否可用** | `python scripts\verify_backend.py`（27 项自检，输出可直接贴给组长） |
 | 对接接口、看请求响应示例 | [docs/api.md](docs/api.md) |
 | **改代码、加数据集/算法/接口、排错** | **[docs/BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md)** |
 | 理解分层设计 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
