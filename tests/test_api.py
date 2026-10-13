@@ -160,6 +160,26 @@ class ExperimentEndpointTest(unittest.TestCase):
         self.assertEqual(payload["status"], "failed")
         self.assertIsNotNone(payload["error"])
 
+    def test_successful_experiment_returns_progress_logs(self):
+        """进度日志以前一直在采集但没有出口，现在必须能取到。"""
+        experiment_id = self._submit(dataset="iris", algorithm="knn", parameters={"k": 3})
+        payload = wait_for(self.client, experiment_id)
+        self.assertEqual(payload["status"], "finished")
+        self.assertTrue(payload["logs"])
+        self.assertTrue(all("message" in entry for entry in payload["logs"]))
+        self.assertIsNone(payload["traceback"])
+
+    def test_failed_experiment_exposes_traceback_and_logs(self):
+        """失败堆栈以前被 snapshot() 自己过滤掉了，现在必须能看到。"""
+        experiment_id = self._submit(dataset="iris", algorithm="knn", parameters={"k": 0})
+        payload = wait_for(self.client, experiment_id)
+        self.assertEqual(payload["status"], "failed")
+        self.assertIsNotNone(payload["error"])
+        self.assertTrue(payload["traceback"])
+        self.assertIn("ValueError", payload["traceback"])
+        # 进度日志应以失败原因收尾，否则看不出结局
+        self.assertIn("失败", payload["logs"][-1]["message"])
+
     def test_websocket_streams_progress_until_finished(self):
         experiment_id = self._submit(dataset="iris", algorithm="knn", parameters={"k": 5})
         types: list[str] = []
@@ -239,6 +259,33 @@ class ErrorHandlingTest(unittest.TestCase):
         payload = self.client.get("/health").json()
         self.assertEqual(payload["status"], "ok")
         self.assertGreaterEqual(payload["datasets"], 7)
+
+
+@requires_data
+class RequestLoggingTest(unittest.TestCase):
+    """请求日志与耗时头。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(app)
+
+    def test_request_is_logged_with_status_and_duration(self):
+        with self.assertLogs("backend.api.main", level="INFO") as captured:
+            self.client.get("/health")
+        text = "\n".join(captured.output)
+        self.assertIn("/health", text)
+        self.assertIn("200", text)
+        self.assertIn("ms", text)
+
+    def test_client_error_is_logged_as_warning(self):
+        with self.assertLogs("backend.api.main", level="WARNING") as captured:
+            self.client.get("/api/datasets/no_such_dataset")
+        self.assertTrue(any("404" in line for line in captured.output))
+
+    def test_response_carries_process_time_header(self):
+        response = self.client.get("/health")
+        self.assertIn("X-Process-Time-Ms", response.headers)
+        self.assertGreaterEqual(float(response.headers["X-Process-Time-Ms"]), 0.0)
 
 
 @requires_data

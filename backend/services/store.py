@@ -17,6 +17,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from backend.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 RESULTS_DIR = Path(__file__).resolve().parents[2] / "experiments" / "results"
 
 # experiment_id 会直接拼进文件名，必须挡住路径分隔符，防止跳出目录
@@ -56,7 +60,10 @@ def save_experiment(result: dict[str, Any]) -> Path:
         os.replace(temp_name, path)
     except BaseException:
         Path(temp_name).unlink(missing_ok=True)
+        # 落盘失败要能看到是哪条实验、写到哪个路径失败的
+        logger.error("实验记录写入失败 id=%s path=%s", experiment_id, path, exc_info=True)
         raise
+    logger.debug("实验记录已保存 id=%s -> %s", experiment_id, path)
     return path
 
 
@@ -85,7 +92,8 @@ def list_experiments(limit: int = 50) -> list[dict[str, Any]]:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            # 单个坏文件不该让整个列表接口失败
+            # 单个坏文件不该让整个列表接口失败，但必须留下痕迹
+            logger.warning("跳过损坏的实验记录文件：%s", path, exc_info=True)
             continue
         summaries.append(
             {

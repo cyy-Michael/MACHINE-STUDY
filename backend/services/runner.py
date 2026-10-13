@@ -19,8 +19,12 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
+from backend.logging_config import get_logger
+
 from . import store
 from .experiment import ExperimentError, run_dataset_experiment
+
+logger = get_logger(__name__)
 
 # 内存里最多保留多少条任务记录，防止长跑的服务无限增长
 MAX_RETAINED_JOBS = 200
@@ -62,6 +66,10 @@ class ExperimentRunner:
             self._trim_locked()
 
         self._executor.submit(self._run, experiment_id, payload)
+        logger.info(
+            "实验已提交 id=%s dataset=%s algorithm=%s",
+            experiment_id, payload.get("dataset"), payload.get("algorithm"),
+        )
         return experiment_id
 
     def _new_id(self, payload: dict[str, Any]) -> str:
@@ -81,6 +89,7 @@ class ExperimentRunner:
 
     # ---------------------------------------------------------------- 执行
     def _run(self, experiment_id: str, payload: dict[str, Any]) -> None:
+        logger.info("实验开始 id=%s", experiment_id)
         self._update(experiment_id, status="running", progress=0.01, message="开始")
 
         def on_progress(message: str, fraction: float) -> None:
@@ -108,7 +117,14 @@ class ExperimentRunner:
                 # 落盘失败不该让训练成果丢失，标记出来即可
                 result["saved"] = False
                 result["save_error"] = str(exc)
+                logger.warning("实验落盘失败 id=%s：%s", experiment_id, exc)
 
+            logger.info(
+                "实验完成 id=%s 训练=%.4fs 预测=%.4fs",
+                experiment_id,
+                result["train_time_seconds"],
+                result["predict_time_seconds"],
+            )
             with self._lock:
                 self._jobs[experiment_id].update(
                     status="finished", progress=1.0, message="完成", result=result
@@ -118,25 +134,52 @@ class ExperimentRunner:
                 {"type": "result", "status": "finished", "result": result},
             )
         except (ExperimentError, ValueError, KeyError) as exc:
-            self._fail(experiment_id, f"{type(exc).__name__}: {exc}")
-        except Exception as exc:  # noqa: BLE001 - 后台线程必须兜住一切
+            # 这类多半是用户参数问题（如 k=0），消息本身够用，不必把堆栈打到日志里；
+            # 但堆栈仍然存进实验记录 —— ValueError 也可能来自我们自己的 bug，
+            # 事后排错没有堆栈就只能靠猜。
             self._fail(
                 experiment_id,
                 f"{type(exc).__name__}: {exc}",
                 detail=traceback.format_exc(),
             )
+        except Exception as exc:  # noqa: BLE001 - 后台线程必须兜住一切
+            self._fail(
+                experiment_id,
+                f"{type(exc).__name__}: {exc}",
+                detail=traceback.format_exc(),
+                unexpected=True,
+            )
 
-    def _fail(self, experiment_id: str, message: str, detail: str | None = None) -> None:
+    def _fail(
+        self,
+        experiment_id: str,
+        message: str,
+        detail: str | None = None,
+        *,
+        unexpected: bool = False,
+    ) -> None:
+        # 只有非预期异常才把堆栈打进日志，否则每次传错参数都会刷一大段堆栈
+        if unexpected and detail:
+            logger.error("实验失败 id=%s：%s\n%s", experiment_id, message, detail)
+        else:
+            logger.warning("实验失败 id=%s：%s", experiment_id, message)
+
         with self._lock:
             record = self._jobs.get(experiment_id)
             if record is not None:
                 record.update(status="failed", message=message, error=message)
                 if detail:
                     record["traceback"] = detail
+                # 让进度日志以失败原因收尾，不然日志停在「训练 knn」看不出结局
+                record["logs"].append(
+                    {"progress": record.get("progress"), "message": f"失败：{message}"}
+                )
                 record["result"] = {
                     "experiment_id": experiment_id,
                     "status": "failed",
                     "error": message,
+                    # 失败原因写进结果文件，事后排错不用翻控制台
+                    "traceback": detail,
                     "dataset": record["request"].get("dataset"),
                     "algorithm": record["request"].get("algorithm"),
                     "created_at": record["created_at"],
@@ -145,8 +188,8 @@ class ExperimentRunner:
         if saved is not None:
             try:
                 store.save_experiment(saved)
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.warning("失败记录落盘失败 id=%s：%s", experiment_id, exc)
         self._publish(
             experiment_id,
             {"type": "error", "status": "failed", "error": message},
@@ -175,13 +218,15 @@ class ExperimentRunner:
             )
 
     def snapshot(self, experiment_id: str) -> dict[str, Any] | None:
-        """返回任务快照；内存里没有就去磁盘找已完成的记录。"""
+        """返回任务快照；内存里没有就去磁盘找已完成的记录。
+
+        这里**不再过滤 traceback** —— 之前它被采集后又被这句过滤掉，
+        等于排错信息抓了却永远看不到。
+        """
         with self._lock:
             record = self._jobs.get(experiment_id)
             if record is not None:
-                return {
-                    key: value for key, value in record.items() if key != "traceback"
-                }
+                return dict(record)
         if store.experiment_exists(experiment_id):
             try:
                 payload = store.load_experiment(experiment_id)
@@ -191,11 +236,12 @@ class ExperimentRunner:
                 "experiment_id": experiment_id,
                 "status": payload.get("status", "finished"),
                 "progress": 1.0,
-                "message": "完成",
+                "message": "完成" if payload.get("status") != "failed" else "失败",
                 "created_at": payload.get("created_at"),
                 "request": {},
                 "result": payload,
                 "error": payload.get("error"),
+                "traceback": payload.get("traceback"),
                 "logs": [],
             }
         return None

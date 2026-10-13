@@ -12,8 +12,11 @@ import numpy as np
 
 from backend.algorithms.registry import list_algorithms
 from backend.data.registry import DatasetUnavailable, dataset_names
+from backend.logging_config import configure_logging, get_logger
 from backend.services.experiment import ExperimentError, run_dataset_experiment
 from backend.services.train_service import run_experiment
+
+logger = get_logger(__name__)
 
 
 def _synthetic_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -93,7 +96,14 @@ def run_demo() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="ML visualization platform backend")
     parser.add_argument("command", choices=["demo", "algorithms"], nargs="?", default="demo")
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="日志级别（DEBUG/INFO/WARNING/ERROR），等价于设置 ML_LOG_LEVEL",
+    )
     args = parser.parse_args()
+    configure_logging(args.log_level)
+
     if args.command == "algorithms":
         for item in list_algorithms():
             print(item)

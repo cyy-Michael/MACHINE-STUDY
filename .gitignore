@@ -20,6 +20,7 @@ Thumbs.db
 data/raw/
 data/local/
 experiments/results/
+logs/
 *.csv
 *.xlsx
 *.xls

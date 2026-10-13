@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
+from time import perf_counter
 from typing import Any, Optional
 
-from fastapi import APIRouter, FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -36,9 +38,18 @@ from backend.data.registry import (
     describe_dataset,
     list_datasets,
 )
+from backend.logging_config import (
+    LOG_FILE_NAME,
+    configure_logging,
+    file_logging_enabled,
+    get_logger,
+    log_directory,
+)
 from backend.services import store
 from backend.services.experiment import ExperimentError, algorithm_task_type
 from backend.services.runner import TERMINAL_STATUSES, get_runner
+
+logger = get_logger(__name__)
 
 # 前端开发服务器默认端口
 CORS_ORIGINS = [
@@ -57,10 +68,29 @@ def error_payload(error_type: str, message: str, **extra: Any) -> dict[str, Any]
     return {"error": {"type": error_type, "message": message, **extra}}
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    configure_logging()
+    destination = (
+        str(log_directory() / LOG_FILE_NAME) if file_logging_enabled() else "已关闭"
+    )
+    logger.info(
+        "服务启动：数据集 %d 个，算法 %d 个；日志文件 %s",
+        len(dataset_names()),
+        len(list_algorithms()),
+        destination,
+    )
+    try:
+        yield
+    finally:
+        logger.info("服务关闭")
+
+
 app = FastAPI(
     title="ML Platform API",
     description="机器学习实验与可视化平台后端",
-    version="0.2.0",
+    version="0.3.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -71,6 +101,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """记录每个请求的方法、路径、状态码和耗时。
+
+    这个中间件位于 Starlette 的 ExceptionMiddleware **外层**，所以被我们
+    接管的业务异常（404/400 等）在这里已经是正常响应，能拿到真实状态码；
+    而真正未捕获的异常会在这里被记下完整堆栈后继续上抛，交给兜底处理器。
+    """
+    started = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (perf_counter() - started) * 1000
+        logger.exception(
+            "请求处理异常 %s %s（%.1f ms）", request.method, request.url.path, elapsed_ms
+        )
+        raise
+
+    elapsed_ms = (perf_counter() - started) * 1000
+    line = "%s %s -> %d（%.1f ms）"
+    args = (request.method, request.url.path, response.status_code, elapsed_ms)
+    if response.status_code >= 500:
+        logger.error(line, *args)
+    elif response.status_code >= 400:
+        logger.warning(line, *args)
+    else:
+        logger.info(line, *args)
+    response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.1f}"
+    return response
+
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -79,33 +141,39 @@ api_router = APIRouter(prefix="/api")
 # ==========================================================================
 
 @app.exception_handler(DatasetNotFound)
-async def _dataset_not_found(_request, exc: DatasetNotFound) -> JSONResponse:
+async def _dataset_not_found(request: Request, exc: DatasetNotFound) -> JSONResponse:
+    logger.warning("404 数据集不存在 %s：%s", request.url.path, exc)
     return JSONResponse(status_code=404, content=error_payload("DatasetNotFound", str(exc)))
 
 
 @app.exception_handler(DatasetUnavailable)
-async def _dataset_unavailable(_request, exc: DatasetUnavailable) -> JSONResponse:
+async def _dataset_unavailable(request: Request, exc: DatasetUnavailable) -> JSONResponse:
     # 数据文件不在本机属于环境问题，不是请求问题，所以是 503 而不是 400
+    logger.error("503 数据集文件不可用 %s：%s", request.url.path, exc)
     return JSONResponse(status_code=503, content=error_payload("DatasetUnavailable", str(exc)))
 
 
 @app.exception_handler(store.ExperimentNotFound)
-async def _experiment_not_found(_request, exc: store.ExperimentNotFound) -> JSONResponse:
+async def _experiment_not_found(request: Request, exc: store.ExperimentNotFound) -> JSONResponse:
+    logger.warning("404 实验不存在 %s：%s", request.url.path, exc)
     return JSONResponse(status_code=404, content=error_payload("ExperimentNotFound", str(exc)))
 
 
 @app.exception_handler(ExperimentError)
-async def _experiment_error(_request, exc: ExperimentError) -> JSONResponse:
+async def _experiment_error(request: Request, exc: ExperimentError) -> JSONResponse:
+    logger.warning("400 实验参数错误 %s：%s", request.url.path, exc)
     return JSONResponse(status_code=400, content=error_payload("ExperimentError", str(exc)))
 
 
 @app.exception_handler(DatasetFormatError)
-async def _format_error(_request, exc: DatasetFormatError) -> JSONResponse:
+async def _format_error(request: Request, exc: DatasetFormatError) -> JSONResponse:
+    logger.error("500 数据格式错误 %s：%s", request.url.path, exc, exc_info=True)
     return JSONResponse(status_code=500, content=error_payload("DatasetFormatError", str(exc)))
 
 
 @app.exception_handler(RequestValidationError)
-async def _validation_error(_request, exc: RequestValidationError) -> JSONResponse:
+async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    logger.warning("400 请求校验失败 %s：%s", request.url.path, exc.errors())
     return JSONResponse(
         status_code=400,
         content=error_payload(
@@ -115,12 +183,15 @@ async def _validation_error(_request, exc: RequestValidationError) -> JSONRespon
 
 
 @app.exception_handler(ValueError)
-async def _value_error(_request, exc: ValueError) -> JSONResponse:
+async def _value_error(request: Request, exc: ValueError) -> JSONResponse:
+    logger.warning("400 参数错误 %s：%s", request.url.path, exc)
     return JSONResponse(status_code=400, content=error_payload("ValueError", str(exc)))
 
 
 @app.exception_handler(Exception)
-async def _unhandled(_request, exc: Exception) -> JSONResponse:
+async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+    # 兜底处理器：这里必须记完整堆栈，否则线上 500 只能靠猜
+    logger.exception("500 未处理异常 %s", request.url.path)
     return JSONResponse(
         status_code=500,
         content=error_payload("InternalError", f"{type(exc).__name__}: {exc}"),
@@ -205,6 +276,10 @@ def create_experiment(request: ExperimentRequest) -> dict[str, Any]:
 
     runner = get_runner()
     experiment_id = runner.submit(request.model_dump())
+    logger.info(
+        "已创建实验 %s（dataset=%s algorithm=%s）",
+        experiment_id, request.dataset, request.algorithm,
+    )
     return {
         "experiment_id": experiment_id,
         "status": "pending",
@@ -225,6 +300,7 @@ def get_experiment(experiment_id: str) -> dict[str, Any]:
     snapshot = get_runner().snapshot(experiment_id)
     if snapshot is None:
         raise store.ExperimentNotFound(f"找不到实验 {experiment_id!r}")
+    failed = snapshot["status"] == "failed"
     return {
         "experiment_id": snapshot["experiment_id"],
         "status": snapshot["status"],
@@ -232,8 +308,12 @@ def get_experiment(experiment_id: str) -> dict[str, Any]:
         "message": snapshot.get("message"),
         "created_at": snapshot.get("created_at"),
         "request": snapshot.get("request"),
+        # 进度日志与失败堆栈都接出来：这两个字段以前一直在采集，
+        # 但没有出口，等于白收集
+        "logs": snapshot.get("logs", []),
         "result": snapshot.get("result"),
         "error": snapshot.get("error"),
+        "traceback": snapshot.get("traceback") if failed else None,
     }
 
 

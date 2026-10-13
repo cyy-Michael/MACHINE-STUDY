@@ -7,9 +7,19 @@
 """
 from __future__ import annotations
 
+import os
 import unittest
 
-from backend.data.registry import dataset_names, dataset_path, get_spec
+# 测试期间把日志降到 WARNING：请求中间件会给每个用例打一行 INFO，
+# 141 个用例的输出会被淹没，真正的问题反而看不见。
+# 同时关掉文件输出，避免跑一次测试就在 logs/ 里留一堆文件。
+os.environ.setdefault("ML_LOG_LEVEL", "WARNING")
+os.environ.setdefault("ML_LOG_TO_FILE", "0")
+
+from backend.data.registry import dataset_names, dataset_path, get_spec  # noqa: E402
+from backend.logging_config import configure_logging  # noqa: E402
+
+configure_logging(force=True)
 
 
 def missing_datasets() -> list[str]:
