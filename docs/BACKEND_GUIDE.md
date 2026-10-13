@@ -218,7 +218,8 @@ logger = get_logger(__name__)
 logger.info("加载数据集 %s：%d 行", name, rows)
 ```
 
-**不要用裸 `print`**。原因见第九节的坑 #1 —— print 会因控制台编码把整个测试套件搞挂。
+**不要用裸 `print`**（例外：`backend/main.py` 是 CLI，它打印给用户看的内容本来就该用
+`print`）。原因见第九节的坑 #1 —— print 会因控制台编码把整个测试套件搞挂。
 
 日志里能看到什么：
 

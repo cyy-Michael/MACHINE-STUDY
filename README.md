@@ -140,8 +140,9 @@ logs/                 运行日志（不提交）
    `train_test_split` 之后，就是为了这件事。
 4. **算法层不读文件、不依赖 HTTP**；API 层不实现算法。
 5. **结果 JSON 里不放模型对象**——它不可序列化，且 `inf`/`nan` 也不是合法 JSON。
-6. **用 `logging` 不用 `print`**。`get_logger(__name__)` 是唯一入口；测试用断言而不是
-   打印结果（曾经因为 print emoji 在 GBK 控制台抛异常，把整个测试套件搞挂）。
+6. **库代码用 `logging`，不用 `print`**。`get_logger(__name__)` 是唯一入口；测试用断言
+   而不是打印结果（曾经因为 print emoji 在 GBK 控制台抛异常，把整个测试套件搞挂）。
+   唯一例外是 `backend/main.py` 的 CLI —— 它的 `print` 是给用户看的命令行输出，那是它的职责。
 
 ## 测试
 
