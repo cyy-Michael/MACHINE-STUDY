@@ -306,6 +306,20 @@ R²=1.0，指标完全失真。已放进元数据的 `drop_columns`。
 写日志/写结果的 handler 不关，临时目录清理会报 `WinError 32`。
 `services/store.py` 用「先写临时文件再 `os.replace`」的原子写法，避免读到写一半的 JSON。
 
+### 9. PowerShell 看中文文件会乱码、甚至丢行
+
+本机的 `pwsh` 实际是 **Windows PowerShell 5.1**（`$PSVersionTable.PSVersion` 可确认），
+它的 `Get-Content` 对**无 BOM 的 UTF-8 文件默认按 GBK 解码**。后果不只是显示乱码 ——
+行数都会数错：
+
+```powershell
+(Get-Content docs\HANDOFF.md).Count                 # 238  ← 错的
+(Get-Content docs\HANDOFF.md -Encoding utf8).Count  # 303  ← 对的
+```
+
+文件本身没有任何问题（20092 字节、303 个换行，用 Python 或 VS Code 看都正常）。
+**看中文文档请加 `-Encoding utf8`**，或者直接用 VS Code。
+
 ---
 
 ## 十、还没做的 / 已知限制
