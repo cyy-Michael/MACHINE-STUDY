@@ -26,6 +26,29 @@ PASS, FAIL, SKIP = "通过", "失败", "跳过"
 rows: list[tuple[str, str, str, str]] = []
 
 
+def make_output_safe() -> None:
+    """让标准输出永远不会因编码问题崩掉。
+
+    Windows 上 stdout 重定向到文件或管道时，Python 用 locale 编码（GBK）
+    而不是控制台编码。此时打印 GBK 装不下的字符（比如画勾和打叉的 emoji）
+    会抛 ``UnicodeEncodeError`` 直接终结脚本。
+
+    这不是假想问题：``docs/BACKEND_GUIDE.md`` 第九节坑 #1 记的就是同一个坑
+    （根目录那个画勾的 ``test_registry.py`` 把整个测试套件搞挂），而这个自检
+    脚本自己第一版也踩了 —— 把输出重定向到文件时，在最后一行崩掉，
+    前面的检查全部白跑。
+
+    两道保险：本脚本正文只用 GBK 能表示的字符，这里再把错误处理放宽。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
+
 def check(section: str, task: str, ok: bool | None, detail: str = "") -> None:
     """ok=None 表示跳过（通常是本地缺数据）。
 
@@ -37,7 +60,7 @@ def check(section: str, task: str, ok: bool | None, detail: str = "") -> None:
 
 def banner(text: str) -> None:
     print()
-    print(f"── {text} " + "─" * max(0, 58 - len(text)))
+    print(f"-- {text} " + "-" * max(0, 58 - len(text)))
 
 
 # ==========================================================================
@@ -420,14 +443,15 @@ def render() -> int:
     print()
     print(f"  共 {total} 项：通过 {total - failed - skipped}，失败 {failed}，跳过 {skipped}")
     if failed:
-        print("  ❌ 存在失败项，后端当前不可用。")
+        print("  结论：存在失败项，后端当前不可用。")
     elif skipped:
-        print("  ⚠️  全部通过，但有跳过项（通常是本地缺数据集）。")
-        print("     补齐数据后重跑可得到完整结论。")
+        print("  结论：全部通过，但有跳过项（通常是本地缺数据集）。")
+        print("        补齐数据后重跑可得到完整结论。")
     else:
-        print("  ✅ 全部通过，后端可用。")
+        print("  结论：全部通过，后端可用。")
     return 1 if failed else 0
 
 
 if __name__ == "__main__":
+    make_output_safe()
     sys.exit(main())
