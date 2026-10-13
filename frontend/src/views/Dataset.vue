@@ -1,0 +1,65 @@
+<template>
+  <div>
+    <el-row :gutter="20">
+      <el-col :span="8">
+        <el-card>
+          <template #header>数据集列表</template>
+          <!-- 接口位置：GET /api/datasets，见 src/api/datasets.js -->
+          <el-table :data="datasets" v-loading="loading" @row-click="onSelect" highlight-current-row>
+            <el-table-column prop="name" label="名称" />
+            <el-table-column prop="format" label="格式" width="80" />
+          </el-table>
+        </el-card>
+      </el-col>
+      <el-col :span="16">
+        <el-card v-if="detail">
+          <template #header>{{ detail.name }} 详情</template>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="样本数">{{ detail.n_samples }}</el-descriptions-item>
+            <el-descriptions-item label="特征数">{{ detail.n_features }}</el-descriptions-item>
+            <el-descriptions-item label="任务类型">{{ detail.task_type }}</el-descriptions-item>
+            <el-descriptions-item label="标签列">{{ detail.label_column }}</el-descriptions-item>
+          </el-descriptions>
+          <h4>字段列表</h4>
+          <el-tag v-for="col in detail.columns || []" :key="col" style="margin: 4px">{{ col }}</el-tag>
+          <h4>数据样例</h4>
+          <el-table :data="detail.head || []" size="small" />
+        </el-card>
+        <el-card v-else>
+          <el-empty description="请选择左侧数据集" />
+        </el-card>
+      </el-col>
+    </el-row>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { listDatasets, getDataset } from '../api/datasets'
+
+const datasets = ref([])
+const detail = ref(null)
+const loading = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    // 接口位置：GET /api/datasets
+    datasets.value = await listDatasets()
+  } catch {
+    // 错误已由 request 拦截器统一提示
+  } finally {
+    loading.value = false
+  }
+})
+
+async function onSelect(row) {
+  try {
+    // 接口位置：GET /api/datasets/{name}
+    detail.value = await getDataset(row.name)
+  } catch {
+    detail.value = null
+  }
+}
+</script>
