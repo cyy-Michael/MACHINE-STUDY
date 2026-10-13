@@ -25,7 +25,7 @@ import numpy as np
 from backend.algorithms.registry import ALGORITHM_REGISTRY
 from backend.data.encoding import impute_with_train_statistics
 from backend.data.preprocessing import standardize, train_test_split
-from backend.data.registry import load_dataset
+from backend.data.registry import get_spec, load_dataset
 from .train_service import run_experiment
 
 # 结果 JSON 里最多返回多少条预测；csv 大的数据集动辄上万条，全塞进响应没意义
@@ -175,19 +175,23 @@ def run_dataset_experiment(
 
     parameters = dict(parameters or {})
 
+    for key in ("task",):
+        if key in parameters and algorithm not in ("random_forest", "gradient_boosting"):
+            raise ExperimentError(f"算法 {algorithm!r} 不接受参数 {key!r}")
+
+    # 先用元数据校验（不碰文件）：参数或算法不匹配时应当立刻返回，
+    # 不该为了报一个 400 先去读一遍几 MB 的数据文件。
+    spec = get_spec(dataset)
+    task_type = _validate_pair(spec.task_type, algorithm)
+
     _emit(progress, f"加载数据集 {dataset}", 0.05)
     loaded = load_dataset(dataset)
-    task_type = _validate_pair(loaded.spec.task_type, algorithm)
     _emit(
         progress,
         f"读取 {loaded.table.format} 文件完成：{len(loaded.table.rows)} 行，"
         f"编码后 {loaded.X.shape[1]} 个特征",
         0.15,
     )
-
-    for key in ("task",):
-        if key in parameters and algorithm not in ("random_forest", "gradient_boosting"):
-            raise ExperimentError(f"算法 {algorithm!r} 不接受参数 {key!r}")
 
     # 1) 划分——必须先于填充和标准化
     _emit(progress, "划分训练集与测试集", 0.25)
