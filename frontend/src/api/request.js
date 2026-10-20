@@ -12,7 +12,10 @@ const request = axios.create({
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const detail = error.response?.data?.detail || error.message || '请求失败'
+    // 后端统一错误结构为 { error: { type, message } }（见 backend/api/main.py），
+    // detail 是 FastAPI 默认格式，留作兜底
+    const data = error.response?.data
+    const detail = data?.error?.message || data?.detail || error.message || '请求失败'
     ElMessage.error(typeof detail === 'string' ? detail : JSON.stringify(detail))
     return Promise.reject(error)
   }

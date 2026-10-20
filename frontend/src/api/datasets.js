@@ -5,29 +5,30 @@ import { mock } from './mock'
  * 数据集接口
  * ─────────────────────────────────────────────
  * 接口位置 1：GET /api/datasets
- * 后端来源：backend/data/loader.py 的 list_local_datasets()
- * 用途：返回本地数据集清单
- *
- * 期望返回结构：
+ * 后端来源：backend/data/registry.py 的 list_datasets()
+ * 返回结构：
  * [
- *   { "name": "iris", "path": "...", "format": "csv" },
+ *   { "name": "iris", "display_name": "鸢尾花", "task_type": "classification",
+ *     "n_samples": 150, "n_features": 4, "target": "species",
+ *     "description": "...", "source_format": "csv" },
  *   ...
  * ]
  *
  * 接口位置 2：GET /api/datasets/{name}
- * 用途：返回数据集详情（字段、样例、缺失值、标签分布）
- *
- * 期望返回结构（建议后端提供，字段名需与后端确认）：
+ * 后端来源：backend/data/registry.py 的 describe_dataset()
+ * 返回结构：
  * {
  *   "name": "iris",
+ *   "display_name": "鸢尾花",
+ *   "task_type": "classification",
+ *   "target": "species",
  *   "n_samples": 150,
  *   "n_features": 4,
- *   "task_type": "classification",
- *   "label_column": "species",
- *   "columns": ["sepal_length", "sepal_width", ...],
- *   "head": [ { ... }, ... ],
- *   "missing": { "col1": 0, "col2": 0 },
- *   "label_distribution": { "setosa": 50, ... }
+ *   "source_format": "csv",
+ *   "fields": [ { "name": "sepal_length", "dtype": "...", "missing": 0,
+ *                 "unique_sample": 35, "samples": [5.1, 4.9, ...] }, ... ],
+ *   "missing_total": 0,
+ *   "label_distribution": { "Iris-setosa": 50, ... }   // 仅分类任务
  * }
  */
 

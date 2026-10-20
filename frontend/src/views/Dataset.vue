@@ -7,7 +7,8 @@
           <!-- 接口位置：GET /api/datasets，见 src/api/datasets.js -->
           <el-table :data="datasets" v-loading="loading" @row-click="onSelect" highlight-current-row>
             <el-table-column prop="name" label="名称" />
-            <el-table-column prop="format" label="格式" width="80" />
+            <el-table-column prop="task_type" label="任务" width="140" />
+            <el-table-column prop="source_format" label="格式" width="80" />
           </el-table>
         </el-card>
       </el-col>
@@ -18,12 +19,23 @@
             <el-descriptions-item label="样本数">{{ detail.n_samples }}</el-descriptions-item>
             <el-descriptions-item label="特征数">{{ detail.n_features }}</el-descriptions-item>
             <el-descriptions-item label="任务类型">{{ detail.task_type }}</el-descriptions-item>
-            <el-descriptions-item label="标签列">{{ detail.label_column }}</el-descriptions-item>
+            <el-descriptions-item label="标签列">{{ detail.target }}</el-descriptions-item>
           </el-descriptions>
+          <template v-if="detail.label_distribution">
+            <h4>标签分布</h4>
+            <el-tag v-for="(count, label) in detail.label_distribution" :key="label" style="margin: 4px">
+              {{ label }}: {{ count }}
+            </el-tag>
+          </template>
           <h4>字段列表</h4>
-          <el-tag v-for="col in detail.columns || []" :key="col" style="margin: 4px">{{ col }}</el-tag>
-          <h4>数据样例</h4>
-          <el-table :data="detail.head || []" size="small" />
+          <el-table :data="detail.fields || []" size="small" border>
+            <el-table-column prop="name" label="字段" />
+            <el-table-column prop="dtype" label="类型" width="110" />
+            <el-table-column prop="missing" label="缺失" width="80" />
+            <el-table-column label="样例值">
+              <template #default="{ row }">{{ (row.samples || []).slice(0, 3).join(', ') }}</template>
+            </el-table-column>
+          </el-table>
         </el-card>
         <el-card v-else>
           <el-empty description="请选择左侧数据集" />

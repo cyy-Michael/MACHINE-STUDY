@@ -1,12 +1,14 @@
 <template>
   <el-card v-loading="loading">
     <template #header>实验结果</template>
+    <el-alert v-if="errorMsg" type="error" :title="errorMsg" :closable="false" />
     <div v-if="result">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="算法">{{ result.algorithm }}</el-descriptions-item>
         <el-descriptions-item label="任务">{{ result.task_type }}</el-descriptions-item>
         <el-descriptions-item label="参数">{{ JSON.stringify(result.parameters) }}</el-descriptions-item>
-        <el-descriptions-item label="预测耗时(s)">{{ result.prediction_time_seconds }}</el-descriptions-item>
+        <el-descriptions-item label="训练耗时(s)">{{ result.train_time_seconds }}</el-descriptions-item>
+        <el-descriptions-item label="预测耗时(s)">{{ result.predict_time_seconds }}</el-descriptions-item>
       </el-descriptions>
 
       <h3>评价指标</h3>
@@ -46,15 +48,20 @@ const route = useRoute()
 const experimentId = route.params.experimentId
 
 const result = ref(null)
+const errorMsg = ref('')
 const loading = ref(false)
 
 onMounted(async () => {
   loading.value = true
   try {
     // 接口位置：GET /api/experiments/{id}
-    // 返回结构: { id, status, result: {...}, logs, error }
+    // 返回结构: { experiment_id, status, result: {...}, logs, error, traceback }
     const response = await getExperiment(experimentId)
-    result.value = response.result
+    if (response.status === 'failed') {
+      errorMsg.value = response.error || '训练失败'
+    } else {
+      result.value = response.result
+    }
   } catch {
     // 错误已统一提示
   } finally {

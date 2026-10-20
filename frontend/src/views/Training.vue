@@ -41,24 +41,32 @@ onMounted(() => {
   ws = new WebSocket(`${protocol}://${location.host}/ws/experiments/${experimentId}`)
 
   ws.onmessage = (event) => {
-    // 期望后端推送格式：{ "type": "progress"|"log"|"done"|"error", ... }
+    // 后端推送格式（backend/api/main.py + services/runner.py）：
+    //   { type: "snapshot"|"progress", status, progress: 0~1, message }
+    //   { type: "result", status: "finished", result }
+    //   { type: "error", status: "failed", error }
+    //   { type: "heartbeat", status: "running" }  // 保活帧，忽略
     let msg
     try {
       msg = JSON.parse(event.data)
     } catch {
-      msg = { type: 'log', message: event.data }
+      msg = { type: 'progress', message: event.data }
     }
-    if (msg.type === 'progress') {
-      progress.value = msg.percent || progress.value
-    } else if (msg.type === 'log') {
-      logs.value += (msg.message || '') + '\n'
-    } else if (msg.type === 'done') {
+    if (msg.type === 'snapshot' || msg.type === 'progress') {
+      if (typeof msg.progress === 'number') {
+        progress.value = Math.round(msg.progress * 100)
+      }
+      if (msg.message) {
+        logs.value += msg.message + '\n'
+      }
+    } else if (msg.type === 'result') {
       progress.value = 100
       status.value = 'success'
       done.value = true
+      logs.value += '训练完成。\n'
     } else if (msg.type === 'error') {
       status.value = 'exception'
-      logs.value += `错误: ${msg.message}\n`
+      logs.value += `错误: ${msg.error || msg.message || '训练失败'}\n`
     }
   }
 

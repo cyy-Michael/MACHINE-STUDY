@@ -1,5 +1,5 @@
 // Mock 数据：后端 API 未就绪时使用，接口就绪后自动回退到真实请求
-// 数据来源：backend/algorithms/registry.py（算法）和 backend/data/local/（数据集）
+// 字段结构已与 backend/api/main.py 对齐（registry.list_datasets / describe_dataset）
 
 const algorithms = [
   { name: 'linear_regression', display_name: '线性回归', task_type: 'regression', implemented_in_house: true, default_params: {} },
@@ -15,56 +15,59 @@ const algorithms = [
 ]
 
 const datasetList = [
-  { name: 'iris', path: 'backend/data/local/iris.csv', format: 'csv' },
-  { name: 'phishing', path: 'backend/data/local/phishing.arff', format: 'arff' },
-  { name: 'air_quality', path: 'backend/data/local/air_quality.csv', format: 'csv' },
+  { name: 'iris', display_name: '鸢尾花', task_type: 'classification', n_samples: 150, n_features: 4, target: 'species', description: '', source_format: 'csv' },
+  { name: 'phishing', display_name: '钓鱼网站', task_type: 'classification', n_samples: 11055, n_features: 30, target: 'Result', description: '', source_format: 'arff' },
+  { name: 'airquality', display_name: '空气质量', task_type: 'regression', n_samples: 9471, n_features: 15, target: 'C6H6(GT)', description: '', source_format: 'csv' },
 ]
 
 const datasetDetails = {
   iris: {
     name: 'iris',
+    display_name: '鸢尾花',
     n_samples: 150,
     n_features: 4,
     task_type: 'classification',
-    label_column: 'species',
-    columns: ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species'],
-    head: [
-      { sepal_length: 5.1, sepal_width: 3.5, petal_length: 1.4, petal_width: 0.2, species: 'Iris-setosa' },
-      { sepal_length: 4.9, sepal_width: 3.0, petal_length: 1.4, petal_width: 0.2, species: 'Iris-setosa' },
-      { sepal_length: 4.7, sepal_width: 3.2, petal_length: 1.3, petal_width: 0.2, species: 'Iris-setosa' },
-      { sepal_length: 4.6, sepal_width: 3.1, petal_length: 1.5, petal_width: 0.2, species: 'Iris-setosa' },
-      { sepal_length: 5.0, sepal_width: 3.6, petal_length: 1.4, petal_width: 0.2, species: 'Iris-setosa' },
+    target: 'species',
+    source_format: 'csv',
+    fields: [
+      { name: 'sepal_length', dtype: 'float', missing: 0, unique_sample: 35, samples: [5.1, 4.9, 4.7] },
+      { name: 'sepal_width', dtype: 'float', missing: 0, unique_sample: 23, samples: [3.5, 3.0, 3.2] },
+      { name: 'petal_length', dtype: 'float', missing: 0, unique_sample: 43, samples: [1.4, 1.3, 1.5] },
+      { name: 'petal_width', dtype: 'float', missing: 0, unique_sample: 22, samples: [0.2, 0.1, 0.3] },
+      { name: 'species', dtype: 'target', missing: 0, unique_sample: 3, samples: ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'] },
     ],
-    missing: { sepal_length: 0, sepal_width: 0, petal_length: 0, petal_width: 0 },
+    missing_total: 0,
     label_distribution: { 'Iris-setosa': 50, 'Iris-versicolor': 50, 'Iris-virginica': 50 },
   },
   phishing: {
     name: 'phishing',
+    display_name: '钓鱼网站',
     n_samples: 11055,
     n_features: 30,
     task_type: 'classification',
-    label_column: 'Result',
-    columns: ['having_IP_Address', 'URL_Length', 'Shortining_Service', 'having_At_Symbol', 'double_slash_redirecting', 'Prefix_Suffix', 'having_Sub_Domain', 'SSLfinal_State', 'Domain_registeration_length', 'Favicon', 'port', 'HTTPS_token', 'Request_URL', 'URL_of_Anchor', 'Links_in_tags', 'SFH', 'Submitting_to_email', 'Abnormal_URL', 'Redirect', 'on_mouseover', 'RightClick', 'popUpWidnow', 'Iframe', 'age_of_domain', 'DNSRecord', 'web_traffic', 'Page_Rank', 'Google_Index', 'Links_pointing_to_page', 'Statistical_report', 'Result'],
-    head: [
-      { having_IP_Address: -1, URL_Length: 1, Shortining_Service: 1, having_At_Symbol: 1, double_slash_redirecting: -1, Prefix_Suffix: -1, having_Sub_Domain: -1, SSLfinal_State: -1, Result: -1 },
-      { having_IP_Address: 1, URL_Length: 1, Shortining_Service: 1, having_At_Symbol: 1, double_slash_redirecting: 1, Prefix_Suffix: -1, having_Sub_Domain: 0, SSLfinal_State: 1, Result: -1 },
+    target: 'Result',
+    source_format: 'arff',
+    fields: [
+      { name: 'having_IP_Address', dtype: 'int', missing: 0, unique_sample: 2, samples: [-1, 1] },
+      { name: 'URL_Length', dtype: 'int', missing: 0, unique_sample: 3, samples: [1, 0, -1] },
+      { name: 'Result', dtype: 'target', missing: 0, unique_sample: 2, samples: [-1, 1] },
     ],
-    missing: {},
+    missing_total: 0,
     label_distribution: { '-1': 4898, '1': 6157 },
   },
-  air_quality: {
-    name: 'air_quality',
+  airquality: {
+    name: 'airquality',
+    display_name: '空气质量',
     n_samples: 9471,
     n_features: 15,
     task_type: 'regression',
-    label_column: 'C6H6(GT)',
-    columns: ['Date', 'Time', 'CO(GT)', 'PT08.S1(CO)', 'NMHC(GT)', 'C6H6(GT)', 'PT08.S2(NMHC)', 'NOx(GT)', 'PT08.S3(NOx)', 'NO2(GT)', 'PT08.S4(NO2)', 'PT08.S5(O3)', 'T', 'RH', 'AH'],
-    head: [
-      { Date: '10/03/2004', Time: '18.00.00', 'CO(GT)': 2.6, 'PT08.S1(CO)': 1360, 'NMHC(GT)': 150, 'C6H6(GT)': 11.9, 'PT08.S2(NMHC)': 1046, 'NOx(GT)': 166, 'PT08.S3(NOx)': 1056, 'NO2(GT)': 113, 'PT08.S4(NO2)': 1692, 'PT08.S5(O3)': 1268, T: 13.6, RH: 48.9, AH: 0.7578 },
-      { Date: '10/03/2004', Time: '19.00.00', 'CO(GT)': 2.0, 'PT08.S1(CO)': 1292, 'NMHC(GT)': 112, 'C6H6(GT)': 9.4, 'PT08.S2(NMHC)': 955, 'NOx(GT)': 103, 'PT08.S3(NOx)': 1174, 'NO2(GT)': 92, 'PT08.S4(NO2)': 1559, 'PT08.S5(O3)': 972, T: 13.3, RH: 47.7, AH: 0.7255 },
+    target: 'C6H6(GT)',
+    source_format: 'csv',
+    fields: [
+      { name: 'CO(GT)', dtype: 'float', missing: 0, unique_sample: 120, samples: [2.6, 2.0, 2.2] },
+      { name: 'C6H6(GT)', dtype: 'target', missing: 0, unique_sample: 200, samples: [11.9, 9.4, 10.5] },
     ],
-    missing: {},
-    label_distribution: {},
+    missing_total: 0,
   },
 }
 
