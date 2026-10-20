@@ -7,7 +7,9 @@
           <!-- 接口位置：GET /api/datasets，见 src/api/datasets.js -->
           <el-table :data="datasets" v-loading="loading" @row-click="onSelect" highlight-current-row>
             <el-table-column prop="name" label="名称" />
-            <el-table-column prop="task_type" label="任务" width="140" />
+            <el-table-column label="任务" width="140">
+              <template #default="{ row }">{{ taskNames[row.task_type] || row.task_type }}</template>
+            </el-table-column>
             <el-table-column prop="source_format" label="格式" width="80" />
           </el-table>
         </el-card>
@@ -18,7 +20,7 @@
           <el-descriptions :column="2" border>
             <el-descriptions-item label="样本数">{{ detail.n_samples }}</el-descriptions-item>
             <el-descriptions-item label="特征数">{{ detail.n_features }}</el-descriptions-item>
-            <el-descriptions-item label="任务类型">{{ detail.task_type }}</el-descriptions-item>
+            <el-descriptions-item label="任务类型">{{ taskNames[detail.task_type] || detail.task_type }}</el-descriptions-item>
             <el-descriptions-item label="标签列">{{ detail.target }}</el-descriptions-item>
           </el-descriptions>
           <template v-if="detail.label_distribution">
@@ -49,6 +51,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listDatasets, getDataset } from '../api/datasets'
+import { taskNames } from '../utils/labels'
 
 const datasets = ref([])
 const detail = ref(null)
