@@ -1,0 +1,38 @@
+{
+  "name": "credit",
+  "display_name": "信用审批 Credit Approval",
+  "task_type": "classification",
+  "target": "class",
+  "description": "信用卡审批数据：15 个特征（连续/低基数类别/高基数类别混合），690 条，二分类。含少量真实缺失值，适合演示缺失值处理。",
+  "source": {
+    "path": "分类/数据集2 - 副本 (3)/crx.data",
+    "format": "csv",
+    "delimiter": ",",
+    "has_header": false
+  },
+  "columns": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "class"],
+  "dtypes": {
+    "A1": "nominal",
+    "A2": "numeric",
+    "A3": "numeric",
+    "A4": "nominal",
+    "A5": "nominal",
+    "A6": "nominal",
+    "A7": "nominal",
+    "A8": "numeric",
+    "A9": "nominal",
+    "A10": "nominal",
+    "A11": "numeric",
+    "A12": "nominal",
+    "A13": "nominal",
+    "A14": "numeric",
+    "A15": "numeric",
+    "class": "nominal"
+  },
+  "drop_columns": [],
+  "missing_markers": ["", "?"],
+  "decimal_comma": false,
+  "recommended_algorithms": ["decision_tree", "random_forest", "knn", "logistic_regression", "gaussian_naive_bayes", "svm"],
+  "shape": {"n_samples": 690, "n_features": 15},
+  "notes": "原始属性名被匿名化成 A1..A15，类别属性是 A16，这里命名为 class 以便阅读。共 67 个缺失单元格，分布在 A1(12)/A2(12)/A4(6)/A5(6)/A6(9)/A7(9)/A14(13)，涉及 37 条记录(5%)。A6 有 14 个取值，是 one-hot 后维度增长的主要来源。类别较均衡：+ 307 / - 383。"
+}

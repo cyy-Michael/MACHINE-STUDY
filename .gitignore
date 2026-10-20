@@ -8,6 +8,7 @@ venv/
 
 # IDE / OS
 .vscode/
+.vs/
 .idea/
 *.suo
 *.user
@@ -15,9 +16,11 @@ Thumbs.db
 
 # Local datasets and generated experiment output
 数据集/
+教案/
 data/raw/
 data/local/
 experiments/results/
+logs/
 *.csv
 *.xlsx
 *.xls

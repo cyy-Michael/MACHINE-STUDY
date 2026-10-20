@@ -7,34 +7,49 @@ import numpy as np
 
 from backend.algorithms.registry import create_algorithm
 from backend.data.preprocessing import k_fold_indices
-from .evaluation import classification_metrics, regression_metrics
+from .evaluation import classification_metrics, clustering_metrics, regression_metrics
 
 
 def run_experiment(name: str, X_train: np.ndarray, X_test: np.ndarray, y_train: np.ndarray | None = None, y_test: np.ndarray | None = None, **params: Any) -> dict[str, Any]:
-    """Run one model through the common fit/predict lifecycle used by future APIs."""
+    """Run one model through the common fit/predict lifecycle used by future APIs.
+
+    训练时间与预测时间**分开计时**（P0 缺陷 #7：原实现从 fit 前计到 predict 后，
+    却把整段叫成 ``prediction_time_seconds``，把训练耗时算进了预测耗时）。
+
+    返回结果里**不含 model 对象**（P0 缺陷 #8：模型实例无法 JSON 序列化，
+    接口层一旦直接返回就会 500）。
+    """
     model = create_algorithm(name, **params)
-    started = perf_counter()
-    if getattr(model, "task_type", None) in {"clustering", "dimensionality_reduction"}:
+    task_type = getattr(model, "task_type", None)
+
+    fit_started = perf_counter()
+    if task_type in {"clustering", "dimensionality_reduction"}:
         model.fit(X_train)
-        predictions = model.predict(X_test)
     else:
         if y_train is None:
             raise ValueError("supervised algorithms require y_train")
         model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
-    predict_seconds = perf_counter() - started
+    train_seconds = perf_counter() - fit_started
+
+    predict_started = perf_counter()
+    predictions = model.predict(X_test)
+    predict_seconds = perf_counter() - predict_started
+
     result: dict[str, Any] = {
         "algorithm": name,
         "task_type": model.task_type,
         "parameters": model.get_params(),
-        "prediction_time_seconds": predict_seconds,
-        "predictions": predictions.tolist(),
-        "model": model,
+        "train_time_seconds": train_seconds,
+        "predict_time_seconds": predict_seconds,
+        "predictions": np.asarray(predictions).tolist(),
     }
-    if y_test is not None and model.task_type == "classification":
+
+    if y_test is not None and task_type == "classification":
         result["metrics"] = classification_metrics(y_test, predictions)
-    elif y_test is not None and model.task_type == "regression":
+    elif y_test is not None and task_type == "regression":
         result["metrics"] = regression_metrics(y_test, predictions)
+    elif task_type == "clustering":
+        result["metrics"] = clustering_metrics(np.asarray(X_test, dtype=float), np.asarray(predictions))
     return result
 
 
